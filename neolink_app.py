@@ -35,117 +35,208 @@ HOURS_LIFE_OPTIONS = [
 # Si no hay sensor neonatal, funciona como estratificación
 # clínica pero NO sustituye el tamizaje por oximetría.
 #
-# Cada criterio incluye:
-#   key        -> identificador interno
-#   code       -> código clínico (M1..M5 / m1..m6)
-#   label      -> nombre del criterio
-#   how_to     -> guía paso a paso de CÓMO EVALUARLO (se muestra
-#                 ANTES de preguntar si el criterio está presente,
-#                 igual que las pantallas de oximetría)
+# Cada criterio es un dict con:
+#   key      -> identificador interno
+#   code     -> código clínico (M1..M5 / m1..m6)
+#   label    -> nombre del criterio
+#   how_to   -> guía de CÓMO EVALUARLO (se muestra ANTES de
+#               ingresar los datos, igual que la oximetría)
+#   kind     -> tipo de "calculadora" que se renderiza para que
+#               el doctor ingrese valores y la app calcule el
+#               resultado del criterio automáticamente:
+#                 "cianosis"     -> observación + test de hiperoxia opcional
+#                 "pulsos"       -> pulsos femoral/braquial + perfusión
+#                 "shock"        -> llenado capilar + signos de hipoperfusión
+#                 "silverman"    -> puntaje Silverman-Andersen (0–10)
+#                 "taquicardia"  -> FC (lpm) + causa evidente descartada
+#                 "checklist"    -> lista de signos (positivo si ≥1 marcado)
+#                 "bool"         -> observación clínica directa Sí/No
+#   options  -> (solo checklist) lista de signos a marcar
+#   umbral_nota -> texto opcional con el umbral usado en el cálculo
 # ============================================================
 
 MAYOR_CRITERIA = [
-    (
-        "cianosis", "M1", "Cianosis central persistente",
-        "Observe la coloración de la lengua, la mucosa oral/labios "
-        "y el tronco del recién nacido.\n\n"
-        "Si está disponible y clínicamente corresponde, realice el "
-        "**test de hiperoxia** con O₂ al 100% durante unos minutos: "
-        "esto puede apoyar el diferencial cardíaco vs. respiratorio. "
-        "Una **escasa respuesta** (la saturación no mejora) aumenta "
-        "la sospecha de causa cardíaca. La ausencia del test **no "
-        "descarta** cardiopatía por sí sola."
-    ),
-    (
-        "pulsos", "M2", "Alteración de pulsos / perfusión diferencial",
-        "Palpe los pulsos femorales y compárelos con los braquiales.\n\n"
-        "Marque este criterio si los pulsos femorales están "
-        "**ausentes o marcadamente disminuidos** respecto a los "
-        "braquiales, y/o si hay una diferencia evidente de "
-        "perfusión, color o temperatura entre las extremidades "
-        "superiores e inferiores."
-    ),
-    (
-        "shock", "M3", "Signos de shock / hipoperfusión",
-        "Evalúe llenado capilar, pulsos, color y temperatura.\n\n"
-        "Marque este criterio si observa llenado capilar >3 s, "
-        "pulsos débiles generalizados, palidez o color grisáceo, "
-        "extremidades frías u otros signos clínicos de "
-        "hipoperfusión."
-    ),
-    (
-        "distres", "M4", "Dificultad respiratoria significativa",
-        "Evalúela objetivamente con el **Test de Silverman-Andersen "
-        "(0–10)**, calificando cada ítem:\n\n"
-        "- Disociación toracoabdominal\n"
-        "- Tiraje intercostal\n"
-        "- Retracción xifoidea\n"
-        "- Aleteo nasal\n"
-        "- Quejido espiratorio\n\n"
-        "Registre el puntaje obtenido en LatidoSeguro."
-    ),
-    (
-        "prenatal", "M5", "Sospecha prenatal de cardiopatía congénita",
-        "Revise la ecografía obstétrica y/o la ecocardiografía "
-        "fetal.\n\n"
-        "Marque este criterio si existe un hallazgo sugestivo de "
-        "cardiopatía congénita significativa en esos estudios."
-    ),
+    {
+        "key": "cianosis", "code": "M1",
+        "label": "Cianosis central persistente",
+        "how_to": (
+            "Observe la coloración de la lengua, la mucosa oral/labios "
+            "y el tronco del recién nacido.\n\n"
+            "Si está disponible y clínicamente corresponde, realice el "
+            "**test de hiperoxia** con O₂ al 100% durante unos minutos: "
+            "esto puede apoyar el diferencial cardíaco vs. respiratorio. "
+            "Una **escasa respuesta** (la saturación no mejora) aumenta "
+            "la sospecha de causa cardíaca. La ausencia del test **no "
+            "descarta** cardiopatía por sí sola."
+        ),
+        "kind": "cianosis",
+    },
+    {
+        "key": "pulsos", "code": "M2",
+        "label": "Alteración de pulsos / perfusión diferencial",
+        "how_to": (
+            "Palpe los pulsos femorales y compárelos con los "
+            "braquiales, y evalúe perfusión, color y temperatura "
+            "entre extremidades superiores e inferiores.\n\n"
+            "Ingrese abajo lo que encuentre; LatidoSeguro calcula si "
+            "el criterio se cumple (pulsos femorales ausentes o "
+            "marcadamente disminuidos respecto a braquiales, y/o "
+            "diferencia evidente de perfusión)."
+        ),
+        "kind": "pulsos",
+    },
+    {
+        "key": "shock", "code": "M3",
+        "label": "Signos de shock / hipoperfusión",
+        "how_to": (
+            "Mida el llenado capilar (presione la piel 5 s y cuente "
+            "cuánto tarda en recuperar el color) y evalúe pulsos, "
+            "color y temperatura.\n\n"
+            "El criterio se calcula como positivo si el llenado "
+            "capilar es >3 s, o si marca algún otro signo de "
+            "hipoperfusión."
+        ),
+        "kind": "shock",
+    },
+    {
+        "key": "distres", "code": "M4",
+        "label": "Dificultad respiratoria significativa",
+        "how_to": (
+            "Evalúela objetivamente con el **Test de Silverman-"
+            "Andersen (0–10)**, calificando cada ítem de 0 (ausente) "
+            "a 2 (intenso):\n\n"
+            "- Disociación toracoabdominal\n"
+            "- Tiraje intercostal\n"
+            "- Retracción xifoidea\n"
+            "- Aleteo nasal\n"
+            "- Quejido espiratorio\n\n"
+            "LatidoSeguro suma el puntaje automáticamente e "
+            "interpreta el resultado."
+        ),
+        "kind": "silverman",
+        "umbral_nota": (
+            "Se considera dificultad respiratoria significativa con "
+            "puntaje ≥4 (moderada o severa). Umbral de prototipo, "
+            "ajustable según protocolo institucional."
+        ),
+    },
+    {
+        "key": "prenatal", "code": "M5",
+        "label": "Sospecha prenatal de cardiopatía congénita",
+        "how_to": (
+            "Revise la ecografía obstétrica y/o la ecocardiografía "
+            "fetal.\n\n"
+            "Marque este criterio si existe un hallazgo sugestivo de "
+            "cardiopatía congénita significativa en esos estudios."
+        ),
+        "kind": "bool",
+        "question": (
+            "¿La ecografía/ecocardiografía fetal muestra un hallazgo "
+            "sugestivo de cardiopatía congénita significativa?"
+        ),
+    },
 ]
 
 MINOR_CRITERIA = [
-    (
-        "soplo", "m1", "Soplo cardíaco",
-        "Ausculte el corazón del recién nacido en un ambiente "
-        "tranquilo.\n\n"
-        "Marque este criterio si identifica un soplo cardíaco. "
-        "Por su limitada especificidad en el RN, **no se considera "
-        "mayor aisladamente**."
-    ),
-    (
-        "taquicardia", "m2", "Taquicardia persistente",
-        "Controle la frecuencia cardíaca en reposo.\n\n"
-        "Antes de marcar este criterio, **descarte primero** llanto, "
-        "fiebre u otra explicación evidente. Márquelo solo si la FC "
-        "permanece persistentemente elevada en reposo."
-    ),
-    (
-        "lactancia", "m3", "Alteración durante la lactancia",
-        "Observe al recién nacido durante una toma.\n\n"
-        "Marque este criterio si presenta fatiga, pausas frecuentes, "
-        "mala succión y/o diaforesis (sudoración) excesiva durante "
-        "la alimentación."
-    ),
-    (
-        "familiar", "m4", "Antecedente familiar",
-        "Revise la historia familiar durante la anamnesis.\n\n"
-        "Marque este criterio si hay cardiopatía congénita en un "
-        "familiar de primer grado."
-    ),
-    (
-        "materno", "m5", "Factores de riesgo materno/prenatal",
-        "Revise la historia prenatal materna.\n\n"
-        "Marque este criterio si se identifican antecedentes "
-        "maternos relevantes (por ejemplo, diabetes gestacional, "
-        "infecciones, exposición a teratógenos, entre otros según "
-        "protocolo institucional)."
-    ),
-    (
-        "sindrome", "m6", "Fenotipo/síndrome asociado a cardiopatía "
-        "congénita",
-        "Realice el examen físico general del recién nacido.\n\n"
-        "Marque este criterio si hay hallazgos físicos que hagan "
-        "sospechar un síndrome con asociación conocida a "
-        "cardiopatías congénitas."
-    ),
+    {
+        "key": "soplo", "code": "m1",
+        "label": "Soplo cardíaco",
+        "how_to": (
+            "Ausculte el corazón del recién nacido en un ambiente "
+            "tranquilo.\n\n"
+            "Marque este criterio si identifica un soplo cardíaco. "
+            "Por su limitada especificidad en el RN, **no se "
+            "considera mayor aisladamente**."
+        ),
+        "kind": "bool",
+        "question": "¿Se ausculta soplo cardíaco?",
+    },
+    {
+        "key": "taquicardia", "code": "m2",
+        "label": "Taquicardia persistente",
+        "how_to": (
+            "Controle la frecuencia cardíaca (FC) en reposo, "
+            "**descartando primero** llanto, fiebre u otra "
+            "explicación evidente.\n\n"
+            "Ingrese la FC medida; LatidoSeguro calcula si "
+            "corresponde a taquicardia persistente."
+        ),
+        "kind": "taquicardia",
+        "umbral_nota": (
+            "Umbral de referencia: FC > 180 lpm en reposo, sin otra "
+            "causa evidente. Ajustable según protocolo institucional."
+        ),
+    },
+    {
+        "key": "lactancia", "code": "m3",
+        "label": "Alteración durante la lactancia",
+        "how_to": (
+            "Observe al recién nacido durante una toma y marque los "
+            "signos que presente. LatidoSeguro considera el criterio "
+            "positivo si hay al menos uno."
+        ),
+        "kind": "checklist",
+        "options": [
+            "Fatiga durante la toma",
+            "Pausas frecuentes",
+            "Mala succión",
+            "Diaforesis (sudoración) excesiva",
+        ],
+    },
+    {
+        "key": "familiar", "code": "m4",
+        "label": "Antecedente familiar",
+        "how_to": (
+            "Revise la historia familiar durante la anamnesis.\n\n"
+            "Marque este criterio si hay cardiopatía congénita en un "
+            "familiar de primer grado."
+        ),
+        "kind": "bool",
+        "question": (
+            "¿Hay cardiopatía congénita en un familiar de primer "
+            "grado?"
+        ),
+    },
+    {
+        "key": "materno", "code": "m5",
+        "label": "Factores de riesgo materno/prenatal",
+        "how_to": (
+            "Revise la historia prenatal materna.\n\n"
+            "Marque este criterio si se identifican antecedentes "
+            "maternos relevantes (por ejemplo, diabetes gestacional, "
+            "infecciones, exposición a teratógenos, entre otros "
+            "según protocolo institucional)."
+        ),
+        "kind": "bool",
+        "question": (
+            "¿Hay antecedentes maternos/prenatales relevantes?"
+        ),
+    },
+    {
+        "key": "sindrome", "code": "m6",
+        "label": (
+            "Fenotipo/síndrome asociado a cardiopatía congénita"
+        ),
+        "how_to": (
+            "Realice el examen físico general del recién nacido.\n\n"
+            "Marque este criterio si hay hallazgos físicos que hagan "
+            "sospechar un síndrome con asociación conocida a "
+            "cardiopatías congénitas."
+        ),
+        "kind": "bool",
+        "question": (
+            "¿Hay hallazgos físicos sugestivos de un síndrome "
+            "asociado a cardiopatía congénita?"
+        ),
+    },
 ]
 
 # Lista combinada para el asistente paso a paso: cada elemento
 # lleva además el tipo ("mayor" / "menor") para poder clasificar
 # al final del recorrido.
 ALL_CRITERIA = (
-    [("mayor",) + c for c in MAYOR_CRITERIA]
-    + [("menor",) + c for c in MINOR_CRITERIA]
+    [dict(tipo="mayor", **c) for c in MAYOR_CRITERIA]
+    + [dict(tipo="menor", **c) for c in MINOR_CRITERIA]
 )
 
 # ============================================================
@@ -574,6 +665,409 @@ def combine_andes_clinical(andes_result, n_mayores, n_menores):
 
 
 # ============================================================
+# CALCULADORAS DE CRITERIOS CLÍNICOS LATIDOSEGURO-CHD
+# ============================================================
+#
+# Cada función recibe:
+#   - key: identificador interno del criterio (para las keys de
+#     los widgets de Streamlit)
+#   - stored: dict con los valores previamente ingresados (para
+#     que "Anterior"/"Siguiente" no borre lo ya escrito)
+#
+# Cada función DEVUELVE (positivo, detalle, raw):
+#   - positivo: bool ya calculado por la app (no lo decide el
+#     doctor a ojo, se deriva de los valores ingresados)
+#   - detalle:  texto corto con el cálculo, para trazabilidad
+#   - raw:      dict con los valores crudos ingresados (se guarda
+#               para poder editarlos después)
+
+def render_calc_cianosis(key, stored):
+
+    observado = st.radio(
+        "¿Observa cianosis central (lengua, mucosa oral/labios o "
+        "tronco)?",
+        ["No", "Sí"],
+        index=1 if stored.get("observado") else 0,
+        key=f"{key}_obs",
+        horizontal=True
+    )
+
+    st.write("")
+
+    realizado = st.checkbox(
+        "Se realizó test de hiperoxia con O₂ al 100% (opcional)",
+        value=stored.get("hiperoxia_realizado", False),
+        key=f"{key}_hip"
+    )
+
+    spo2_pre = stored.get("spo2_pre")
+    spo2_post = stored.get("spo2_post")
+
+    if realizado:
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            spo2_pre = st.number_input(
+                "SpO2 antes de O₂ 100% (%)",
+                min_value=30, max_value=100,
+                value=int(stored.get("spo2_pre", 70)),
+                key=f"{key}_pre"
+            )
+
+        with col2:
+            spo2_post = st.number_input(
+                "SpO2 tras varios minutos con O₂ 100% (%)",
+                min_value=30, max_value=100,
+                value=int(stored.get("spo2_post", 75)),
+                key=f"{key}_post"
+            )
+
+        delta = spo2_post - spo2_pre
+
+        if spo2_post < 85 or delta < 10:
+            st.warning(
+                f"⬆️ Respuesta escasa al O₂ (Δ={delta} pts, SpO2 "
+                f"final {spo2_post}%). Aumenta la sospecha de causa "
+                f"cardíaca."
+            )
+        else:
+            st.info(
+                f"⬆️ Buena respuesta al O₂ (Δ={delta} pts). Sugiere "
+                f"causa más respiratoria que cardíaca, aunque no "
+                f"descarta cardiopatía."
+            )
+
+    positive = (observado == "Sí")
+
+    detail = (
+        "Cianosis central observada"
+        if positive
+        else "Sin cianosis central observada"
+    )
+
+    if realizado and spo2_pre is not None and spo2_post is not None:
+        detail += f" · Test hiperoxia: {spo2_pre}% → {spo2_post}%"
+
+    raw = {
+        "observado": positive,
+        "hiperoxia_realizado": realizado,
+        "spo2_pre": spo2_pre,
+        "spo2_post": spo2_post,
+    }
+
+    st.caption(
+        ("🔴 Cálculo del criterio: POSITIVO" if positive
+         else "🟢 Cálculo del criterio: NEGATIVO")
+        + f" — {detail}"
+    )
+
+    return positive, detail, raw
+
+
+def render_calc_pulsos(key, stored):
+
+    opts = ["Normal", "Disminuido", "Ausente"]
+    rank = {"Normal": 0, "Disminuido": 1, "Ausente": 2}
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        femoral = st.selectbox(
+            "Pulso femoral",
+            opts,
+            index=opts.index(stored.get("femoral", "Normal")),
+            key=f"{key}_fem"
+        )
+
+    with col2:
+        braquial = st.selectbox(
+            "Pulso braquial",
+            opts,
+            index=opts.index(stored.get("braquial", "Normal")),
+            key=f"{key}_bra"
+        )
+
+    diff_perf = st.checkbox(
+        "Diferencia evidente de perfusión, color o temperatura "
+        "entre extremidades superiores e inferiores",
+        value=stored.get("diff_perf", False),
+        key=f"{key}_diff"
+    )
+
+    positive = (
+        rank[femoral] > rank[braquial]
+        or femoral == "Ausente"
+        or diff_perf
+    )
+
+    detail = (
+        f"Femoral: {femoral} · Braquial: {braquial} · "
+        f"Diferencia de perfusión: {'Sí' if diff_perf else 'No'}"
+    )
+
+    st.caption(
+        ("🔴 Cálculo del criterio: POSITIVO" if positive
+         else "🟢 Cálculo del criterio: NEGATIVO")
+        + f" — {detail}"
+    )
+
+    raw = {
+        "femoral": femoral,
+        "braquial": braquial,
+        "diff_perf": diff_perf,
+    }
+
+    return positive, detail, raw
+
+
+def render_calc_shock(key, stored):
+
+    llenado = st.number_input(
+        "Llenado capilar (segundos)",
+        min_value=0.0, max_value=10.0,
+        value=float(stored.get("llenado", 2.0)),
+        step=0.5,
+        key=f"{key}_llen"
+    )
+
+    pulsos_debiles = st.checkbox(
+        "Pulsos débiles generalizados",
+        value=stored.get("pulsos_debiles", False),
+        key=f"{key}_pd"
+    )
+
+    palidez = st.checkbox(
+        "Palidez / color grisáceo",
+        value=stored.get("palidez", False),
+        key=f"{key}_pal"
+    )
+
+    frias = st.checkbox(
+        "Extremidades frías",
+        value=stored.get("frias", False),
+        key=f"{key}_fr"
+    )
+
+    positive = (
+        llenado > 3
+        or pulsos_debiles
+        or palidez
+        or frias
+    )
+
+    signos = []
+    if llenado > 3:
+        signos.append(f"llenado capilar {llenado:g}s (>3s)")
+    if pulsos_debiles:
+        signos.append("pulsos débiles")
+    if palidez:
+        signos.append("palidez/grisáceo")
+    if frias:
+        signos.append("extremidades frías")
+
+    detail = (
+        "Signos presentes: " + ", ".join(signos)
+        if signos
+        else f"Sin signos de hipoperfusión (llenado capilar {llenado:g}s)"
+    )
+
+    st.caption(
+        ("🔴 Cálculo del criterio: POSITIVO" if positive
+         else "🟢 Cálculo del criterio: NEGATIVO")
+        + f" — {detail}"
+    )
+
+    raw = {
+        "llenado": llenado,
+        "pulsos_debiles": pulsos_debiles,
+        "palidez": palidez,
+        "frias": frias,
+    }
+
+    return positive, detail, raw
+
+
+def render_calc_silverman(key, stored):
+
+    items = [
+        "Disociación toracoabdominal",
+        "Tiraje intercostal",
+        "Retracción xifoidea",
+        "Aleteo nasal",
+        "Quejido espiratorio",
+    ]
+
+    st.write(
+        "Puntúe cada ítem (0 = ausente · 1 = leve · 2 = intenso):"
+    )
+
+    scores = []
+
+    for i, item in enumerate(items):
+
+        val = st.select_slider(
+            item,
+            options=[0, 1, 2],
+            value=stored.get(f"item_{i}", 0),
+            key=f"{key}_it{i}"
+        )
+
+        scores.append(val)
+
+    total = sum(scores)
+
+    st.metric("Puntaje total Silverman-Andersen", f"{total} / 10")
+
+    if total == 0:
+        interp = "Sin dificultad respiratoria"
+    elif total <= 3:
+        interp = "Dificultad leve"
+    elif total <= 6:
+        interp = "Dificultad moderada"
+    else:
+        interp = "Dificultad severa"
+
+    positive = total >= 4
+
+    detail = f"Silverman-Andersen = {total}/10 ({interp})"
+
+    st.caption(
+        ("🔴 Cálculo del criterio: POSITIVO" if positive
+         else "🟢 Cálculo del criterio: NEGATIVO")
+        + f" — {detail}"
+    )
+
+    raw = {f"item_{i}": scores[i] for i in range(len(items))}
+    raw["total"] = total
+
+    return positive, detail, raw
+
+
+def render_calc_taquicardia(key, stored):
+
+    fc = st.number_input(
+        "Frecuencia cardíaca en reposo (lpm)",
+        min_value=60, max_value=300,
+        value=int(stored.get("fc", 150)),
+        key=f"{key}_fc"
+    )
+
+    descartado = st.checkbox(
+        "Se descartó llanto, fiebre u otra causa evidente",
+        value=stored.get("descartado", False),
+        key=f"{key}_desc"
+    )
+
+    umbral = 180
+
+    positive = descartado and fc > umbral
+
+    detail = (
+        f"FC {fc} lpm · causa evidente descartada: "
+        f"{'Sí' if descartado else 'No'} (umbral {umbral} lpm)"
+    )
+
+    st.caption(
+        ("🔴 Cálculo del criterio: POSITIVO" if positive
+         else "🟢 Cálculo del criterio: NEGATIVO")
+        + f" — {detail}"
+    )
+
+    raw = {"fc": fc, "descartado": descartado}
+
+    return positive, detail, raw
+
+
+def render_calc_checklist(key, stored, options):
+
+    selected = []
+
+    for i, opt in enumerate(options):
+
+        checked = st.checkbox(
+            opt,
+            value=stored.get(f"opt_{i}", False),
+            key=f"{key}_c{i}"
+        )
+
+        if checked:
+            selected.append(opt)
+
+    positive = len(selected) >= 1
+
+    detail = (
+        "Signos presentes: " + ", ".join(selected)
+        if selected
+        else "Sin signos presentes"
+    )
+
+    st.caption(
+        ("🔴 Cálculo del criterio: POSITIVO" if positive
+         else "🟢 Cálculo del criterio: NEGATIVO")
+        + f" — {detail}"
+    )
+
+    raw = {
+        f"opt_{i}": (options[i] in selected)
+        for i in range(len(options))
+    }
+
+    return positive, detail, raw
+
+
+def render_calc_bool(key, stored, question):
+
+    ans = st.radio(
+        question,
+        ["No", "Sí"],
+        index=1 if stored.get("presente") else 0,
+        key=f"{key}_b",
+        horizontal=True
+    )
+
+    positive = (ans == "Sí")
+
+    detail = "Presente" if positive else "Ausente"
+
+    raw = {"presente": positive}
+
+    return positive, detail, raw
+
+
+def render_criterion_calculator(crit, stored):
+    """Despacha al renderizador correcto según crit['kind'] y
+    devuelve (positivo, detalle, raw)."""
+
+    kind = crit["kind"]
+    key = crit["key"]
+
+    if kind == "cianosis":
+        return render_calc_cianosis(key, stored)
+
+    if kind == "pulsos":
+        return render_calc_pulsos(key, stored)
+
+    if kind == "shock":
+        return render_calc_shock(key, stored)
+
+    if kind == "silverman":
+        return render_calc_silverman(key, stored)
+
+    if kind == "taquicardia":
+        return render_calc_taquicardia(key, stored)
+
+    if kind == "checklist":
+        return render_calc_checklist(key, stored, crit["options"])
+
+    # kind == "bool" (por defecto)
+    question = crit.get(
+        "question", "¿El criterio está presente?"
+    )
+    return render_calc_bool(key, stored, question)
+
+
+# ============================================================
 # MEDICIONES
 # ============================================================
 
@@ -634,6 +1128,7 @@ def build_case_record(case, result):
 
         "clinical_mayores": case.get("clinical_mayores", []),
         "clinical_menores": case.get("clinical_menores", []),
+        "clinical_details": case.get("clinical_details", {}),
         "risk_label": case.get("risk_label", ""),
 
         "result": result,
@@ -880,11 +1375,12 @@ def render_historia_clinica(record, next_screen, next_label):
 
     st.markdown("#### 🫀 Evaluación clínica LatidoSeguro-CHD")
 
-    mayor_info = {c[0]: c for c in MAYOR_CRITERIA}
-    minor_info = {c[0]: c for c in MINOR_CRITERIA}
+    mayor_info = {c["key"]: c for c in MAYOR_CRITERIA}
+    minor_info = {c["key"]: c for c in MINOR_CRITERIA}
 
     mayores = record.get("clinical_mayores", [])
     menores = record.get("clinical_menores", [])
+    details = record.get("clinical_details", {})
 
     if mayores or menores:
 
@@ -893,7 +1389,11 @@ def render_historia_clinica(record, next_screen, next_label):
             for k in mayores:
                 info = mayor_info.get(k)
                 if info:
-                    st.write(f"- `{info[1]}` {info[2]}")
+                    det = details.get(k)
+                    line = f"- `{info['code']}` {info['label']}"
+                    if det:
+                        line += f" — {det}"
+                    st.write(line)
         else:
             st.write("**Criterios mayores presentes:** ninguno")
 
@@ -902,7 +1402,11 @@ def render_historia_clinica(record, next_screen, next_label):
             for k in menores:
                 info = minor_info.get(k)
                 if info:
-                    st.write(f"- `{info[1]}` {info[2]}")
+                    det = details.get(k)
+                    line = f"- `{info['code']}` {info['label']}"
+                    if det:
+                        line += f" — {det}"
+                    st.write(line)
         else:
             st.write("**Criterios menores presentes:** ninguno")
 
@@ -1606,13 +2110,11 @@ elif st.session_state.screen == "Criterios clínicos":
     if "_criteria_idx" not in case:
         case["_criteria_idx"] = 0
 
-    if "_criteria_answers" not in case:
-        case["_criteria_answers"] = dict(
-            zip(
-                [c[1] for c in ALL_CRITERIA],
-                [False] * len(ALL_CRITERIA)
-            )
-        )
+    if "_criteria_values" not in case:
+        case["_criteria_values"] = {}
+
+    if "_criteria_computed" not in case:
+        case["_criteria_computed"] = {}
 
     idx = case["_criteria_idx"]
     total_steps = len(ALL_CRITERIA)
@@ -1637,7 +2139,12 @@ elif st.session_state.screen == "Criterios clínicos":
 
     if idx < total_steps:
 
-        tipo, key, code, label, how_to = ALL_CRITERIA[idx]
+        crit = ALL_CRITERIA[idx]
+        tipo = crit["tipo"]
+        key = crit["key"]
+        code = crit["code"]
+        label = crit["label"]
+        how_to = crit["how_to"]
 
         st.progress((idx) / total_steps)
 
@@ -1666,17 +2173,19 @@ elif st.session_state.screen == "Criterios clínicos":
             unsafe_allow_html=True
         )
 
+        if crit.get("umbral_nota"):
+
+            st.caption(f"ℹ️ {crit['umbral_nota']}")
+
         st.write("")
 
-        current_answer = case["_criteria_answers"].get(key, False)
+        st.markdown("**Ingrese los datos y LatidoSeguro calcula el resultado:**")
 
-        present = st.radio(
-            "¿El criterio está presente, según la evaluación anterior?",
-            ["No", "Sí"],
-            index=1 if current_answer else 0,
-            key=f"criteria_radio_{key}",
-            horizontal=True
-        )
+        stored = case["_criteria_values"].get(key, {})
+
+        positive, detail, raw = render_criterion_calculator(crit, stored)
+
+        st.write("")
 
         nav1, nav2 = st.columns(2)
 
@@ -1689,7 +2198,11 @@ elif st.session_state.screen == "Criterios clínicos":
                     use_container_width=True
                 ):
 
-                    case["_criteria_answers"][key] = (present == "Sí")
+                    case["_criteria_values"][key] = raw
+                    case["_criteria_computed"][key] = {
+                        "positive": positive,
+                        "detail": detail,
+                    }
                     case["_criteria_idx"] = idx - 1
                     st.rerun()
 
@@ -1707,7 +2220,11 @@ elif st.session_state.screen == "Criterios clínicos":
                 use_container_width=True
             ):
 
-                case["_criteria_answers"][key] = (present == "Sí")
+                case["_criteria_values"][key] = raw
+                case["_criteria_computed"][key] = {
+                    "positive": positive,
+                    "detail": detail,
+                }
                 case["_criteria_idx"] = idx + 1
                 st.rerun()
 
@@ -1717,41 +2234,64 @@ elif st.session_state.screen == "Criterios clínicos":
 
     else:
 
-        answers = case["_criteria_answers"]
+        computed = case["_criteria_computed"]
 
         mayores_selected = [
-            c[0] for c in MAYOR_CRITERIA if answers.get(c[1], False)
+            c["key"] for c in MAYOR_CRITERIA
+            if computed.get(c["key"], {}).get("positive")
         ]
 
         menores_selected = [
-            c[0] for c in MINOR_CRITERIA if answers.get(c[1], False)
+            c["key"] for c in MINOR_CRITERIA
+            if computed.get(c["key"], {}).get("positive")
         ]
 
+        clinical_details = {
+            c["key"]: computed.get(c["key"], {}).get("detail", "")
+            for c in MAYOR_CRITERIA + MINOR_CRITERIA
+            if c["key"] in computed
+        }
+
         st.success(
-            "✅ Evaluación clínica completa. Revise el resumen antes "
-            "de continuar."
+            "✅ Evaluación clínica completa. Revise el resumen "
+            "calculado antes de continuar."
         )
 
         st.write(
-            f"🔴 Criterios mayores presentes: {len(mayores_selected)} · "
-            f"🟡 Criterios menores presentes: {len(menores_selected)}"
+            f"🔴 Criterios mayores positivos: {len(mayores_selected)} · "
+            f"🟡 Criterios menores positivos: {len(menores_selected)}"
         )
 
-        if mayores_selected:
-            mayor_labels = {c[0]: c[2] for c in MAYOR_CRITERIA}
-            st.write(
-                "**Mayores:** " + ", ".join(
-                    mayor_labels[k] for k in mayores_selected
-                )
-            )
+        mayor_labels = {c["key"]: (c["code"], c["label"]) for c in MAYOR_CRITERIA}
+        minor_labels = {c["key"]: (c["code"], c["label"]) for c in MINOR_CRITERIA}
 
-        if menores_selected:
-            minor_labels = {c[0]: c[2] for c in MINOR_CRITERIA}
-            st.write(
-                "**Menores:** " + ", ".join(
-                    minor_labels[k] for k in menores_selected
-                )
-            )
+        with st.expander("Ver el cálculo completo de cada criterio", expanded=True):
+
+            for c in MAYOR_CRITERIA:
+
+                res = computed.get(c["key"])
+
+                if res:
+
+                    icon = "🔴" if res["positive"] else "⚪"
+
+                    st.write(
+                        f'{icon} **{c["code"]} · {c["label"]}** — '
+                        f'{res["detail"]}'
+                    )
+
+            for c in MINOR_CRITERIA:
+
+                res = computed.get(c["key"])
+
+                if res:
+
+                    icon = "🟡" if res["positive"] else "⚪"
+
+                    st.write(
+                        f'{icon} **{c["code"]} · {c["label"]}** — '
+                        f'{res["detail"]}'
+                    )
 
         nav1, nav2 = st.columns(2)
 
@@ -1775,6 +2315,7 @@ elif st.session_state.screen == "Criterios clínicos":
 
                 case["clinical_mayores"] = mayores_selected
                 case["clinical_menores"] = menores_selected
+                case["clinical_details"] = clinical_details
 
                 if has_sensor:
 
@@ -1794,7 +2335,8 @@ elif st.session_state.screen == "Criterios clínicos":
                 case["risk_label"] = label
 
                 case.pop("_criteria_idx", None)
-                case.pop("_criteria_answers", None)
+                case.pop("_criteria_values", None)
+                case.pop("_criteria_computed", None)
 
                 st.session_state.result = final_result
 
@@ -1902,13 +2444,11 @@ elif st.session_state.screen == "Resultado":
         ):
 
             mayor_labels = {
-                key: label
-                for key, code, label, how_to in MAYOR_CRITERIA
+                c["key"]: c["label"] for c in MAYOR_CRITERIA
             }
 
             minor_labels = {
-                key: label
-                for key, code, label, how_to in MINOR_CRITERIA
+                c["key"]: c["label"] for c in MINOR_CRITERIA
             }
 
             if mayores:
@@ -2205,13 +2745,11 @@ elif st.session_state.screen == "NeoLink Alerta":
     )
 
     mayor_labels = {
-        key: label
-        for key, code, label, how_to in MAYOR_CRITERIA
+        c["key"]: c["label"] for c in MAYOR_CRITERIA
     }
 
     minor_labels = {
-        key: label
-        for key, code, label, how_to in MINOR_CRITERIA
+        c["key"]: c["label"] for c in MINOR_CRITERIA
     }
 
     data = {
