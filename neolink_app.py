@@ -1815,7 +1815,7 @@ elif st.session_state.screen == "Nuevo tamizaje":
 
     st.markdown(
         '<div class="step-box">'
-        '💡 Complete estos datos básicos del recién nacido '
+        '💡 Complete los datos del recién nacido y de la madre '
         'antes de iniciar la medición.'
         '</div>',
         unsafe_allow_html=True
@@ -1824,6 +1824,19 @@ elif st.session_state.screen == "Nuevo tamizaje":
     st.write("")
 
     with st.form("rn_form"):
+
+        # ====================================================
+        # DATOS DEL RECIÉN NACIDO
+        # ====================================================
+
+        st.markdown(
+            "### 👶 Datos del recién nacido"
+        )
+
+        rn_name = st.text_input(
+            "👤 Nombre completo del RN",
+            placeholder="Ej. Juan Pérez García"
+        )
 
         rn_id = st.text_input(
             "🆔 Código / identificación del RN",
@@ -1843,6 +1856,37 @@ elif st.session_state.screen == "Nuevo tamizaje":
             index=0
         )
 
+        st.write("")
+
+        # ====================================================
+        # DATOS DE LA MADRE
+        # ====================================================
+
+        st.markdown(
+            "### 👩 Datos de la madre"
+        )
+
+        mother_name = st.text_input(
+            "👤 Nombre completo de la madre",
+            placeholder="Ej. María García López"
+        )
+
+        mother_dni = st.text_input(
+            "🪪 DNI de la madre",
+            max_chars=8,
+            placeholder="Ej. 12345678"
+        )
+
+        st.write("")
+
+        # ====================================================
+        # DATOS DEL REGISTRO
+        # ====================================================
+
+        st.markdown(
+            "### 📋 Datos del registro"
+        )
+
         fecha_hora = st.text_input(
             "📅 Fecha/hora del registro",
             value=datetime.now().strftime(
@@ -1850,34 +1894,98 @@ elif st.session_state.screen == "Nuevo tamizaje":
             )
         )
 
+        st.write("")
+
         submitted = st.form_submit_button(
             "Continuar ➜",
             type="primary"
         )
 
+    # ========================================================
+    # VALIDACIÓN Y GUARDADO
+    # ========================================================
+
     if submitted:
 
-        st.session_state.current_case = {
+        # Validar datos obligatorios
+        if not rn_name.strip():
+            st.error(
+                "Ingrese el nombre completo del recién nacido."
+            )
 
-            "case_id":
-                f"NL-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+        elif not rn_id.strip():
+            st.error(
+                "Ingrese el código o identificación del RN."
+            )
 
-            "rn_id": rn_id,
+        elif not mother_name.strip():
+            st.error(
+                "Ingrese el nombre completo de la madre."
+            )
 
-            "gestational_age":
-                gestational_age,
+        elif not mother_dni.strip():
+            st.error(
+                "Ingrese el DNI de la madre."
+            )
 
-            "hours_life":
-                hours_life,
+        elif not mother_dni.isdigit() or len(mother_dni) != 8:
+            st.error(
+                "El DNI de la madre debe contener exactamente 8 dígitos."
+            )
 
-            "registered_at":
-                fecha_hora,
+        else:
 
-            "measurements": [],
-        }
+            st.session_state.current_case = {
 
-        go("Sensor")
+                # ------------------------------------------------
+                # Identificación del caso
+                # ------------------------------------------------
 
+                "case_id":
+                    f"NL-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+
+                # ------------------------------------------------
+                # Datos del recién nacido
+                # ------------------------------------------------
+
+                "rn_id":
+                    rn_id.strip(),
+
+                "rn_name":
+                    rn_name.strip(),
+
+                "gestational_age":
+                    gestational_age,
+
+                "hours_life":
+                    hours_life,
+
+                # ------------------------------------------------
+                # Datos de la madre
+                # ------------------------------------------------
+
+                "mother_name":
+                    mother_name.strip(),
+
+                "mother_dni":
+                    mother_dni.strip(),
+
+                # ------------------------------------------------
+                # Datos del registro
+                # ------------------------------------------------
+
+                "registered_at":
+                    fecha_hora,
+
+                # ------------------------------------------------
+                # Mediciones
+                # ------------------------------------------------
+
+                "measurements":
+                    [],
+            }
+
+            go("Sensor")
 
 # ============================================================
 # ¿CUENTA CON SENSOR NEONATAL COMPATIBLE?
