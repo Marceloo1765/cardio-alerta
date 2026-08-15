@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import pydeck as pdk
 import json
 from pathlib import Path
 from datetime import datetime
@@ -26,6 +27,54 @@ HOURS_LIFE_OPTIONS = [
     "12–24 horas de vida",
     "24–48 horas de vida",
     "Más de 48 horas de vida",
+]
+
+# ============================================================
+# CRITERIOS CLÍNICOS LATIDOSEGURO-CHD
+# Complementa la oximetría (ANDES-CHD) cuando está disponible.
+# Si no hay sensor neonatal, funciona como estratificación
+# clínica pero NO sustituye el tamizaje por oximetría.
+# ============================================================
+
+MAYOR_CRITERIA = [
+    ("cianosis", "Cianosis central persistente",
+     "Coloración azulada de lengua, mucosa oral/labios o tronco. "
+     "El test de hiperoxia con O₂ al 100%, si corresponde, puede "
+     "apoyar el diferencial cardíaco vs. respiratorio."),
+    ("pulsos", "Alteración de pulsos / perfusión diferencial",
+     "Pulsos femorales ausentes o marcadamente disminuidos respecto "
+     "a braquiales, y/o diferencia evidente de perfusión, color o "
+     "temperatura entre extremidades superiores e inferiores."),
+    ("shock", "Signos de shock / hipoperfusión",
+     "Llenado capilar >3 s, pulsos débiles generalizados, "
+     "palidez/grisáceo, extremidades frías."),
+    ("distres", "Dificultad respiratoria significativa",
+     "Disociación toracoabdominal, tiraje intercostal, retracción "
+     "xifoidea, aleteo nasal y quejido espiratorio "
+     "(Test de Silverman-Andersen)."),
+    ("prenatal", "Sospecha prenatal de cardiopatía congénita",
+     "Ecografía obstétrica / ecocardiografía fetal con hallazgo "
+     "sugestivo de cardiopatía congénita significativa."),
+]
+
+MINOR_CRITERIA = [
+    ("soplo", "Soplo cardíaco",
+     "Identificado a la auscultación. No se considera mayor "
+     "aisladamente por su limitada especificidad en el RN."),
+    ("taquicardia", "Taquicardia persistente",
+     "FC persistentemente elevada en reposo, descartando primero "
+     "llanto, fiebre u otra explicación evidente."),
+    ("lactancia", "Alteración durante la lactancia",
+     "Fatiga, pausas frecuentes, mala succión y/o diaforesis "
+     "excesiva durante la alimentación."),
+    ("familiar", "Antecedente familiar",
+     "Cardiopatía congénita en familiar de primer grado."),
+    ("materno", "Factores de riesgo materno/prenatal",
+     "Antecedentes maternos relevantes identificados durante la "
+     "historia prenatal."),
+    ("sindrome", "Fenotipo/síndrome asociado a cardiopatía congénita",
+     "Hallazgos físicos que hagan sospechar un síndrome con "
+     "asociación conocida a cardiopatías congénitas."),
 ]
 
 # ============================================================
@@ -337,6 +386,95 @@ def evaluate_screening(pre, post, altitude_group):
 
 
 # ============================================================
+# CLASIFICACIÓN CLÍNICA LATIDOSEGURO-CHD (SIN OXÍMETRO)
+# ============================================================
+#
+# 🔴 ALTO RIESGO:      ≥1 criterio MAYOR
+# 🟡 RIESGO INTERMEDIO: 0 mayores + ≥2 criterios MENORES
+# 🟢 BAJO RIESGO:       0 mayores + 0–1 criterio MENOR
+#
+# El resultado se mapea al mismo vocabulario POSITIVO / REPETIR /
+# NEGATIVO que usa el resto de la app para no duplicar lógica en
+# Pendientes, Alertas y Dashboard.
+
+def classify_clinical_only(n_mayores, n_menores):
+
+    if n_mayores >= 1:
+        return (
+            "POSITIVO",
+            "🔴 Alto riesgo clínico — CARDIO ALERTA ACTIVADA"
+        )
+
+    if n_menores >= 2:
+        return (
+            "REPETIR",
+            "🟡 Sospecha de riesgo — considerar referencia y evaluación"
+        )
+
+    return (
+        "NEGATIVO",
+        "🟢 Bajo riesgo clínico — seguimiento habitual"
+    )
+
+
+# ============================================================
+# COMBINACIÓN ANDES-CHD (OXIMETRÍA) + CRITERIOS CLÍNICOS
+# ============================================================
+#
+# Cuando sí hay sensor, el resultado de oximetría (ANDES-CHD) se
+# combina con los criterios clínicos LatidoSeguro. Las filas
+# marcadas con * son reglas propuestas por LatidoSeguro, aún
+# pendientes de validación clínica prospectiva.
+
+def combine_andes_clinical(andes_result, n_mayores, n_menores):
+
+    if andes_result == "POSITIVO":
+        return (
+            "POSITIVO",
+            "🔴 Alto riesgo — SpO2 positiva (ANDES-CHD)"
+        )
+
+    if andes_result == "REPETIR":
+
+        if n_mayores >= 1:
+            return (
+                "POSITIVO",
+                "🔴 Alto riesgo — SpO2 intermedia + criterio clínico mayor"
+            )
+
+        if n_menores >= 2:
+            return (
+                "POSITIVO",
+                "🔴 Alto riesgo* — SpO2 intermedia + ≥2 criterios menores"
+            )
+
+        return (
+            "REPETIR",
+            "🟡 Repetir SpO2 según protocolo"
+        )
+
+    # andes_result == "NEGATIVO"
+
+    if n_mayores >= 1:
+        return (
+            "REPETIR",
+            "🟡 Riesgo clínico / interconsulta — "
+            "criterio mayor pese a SpO2 negativa"
+        )
+
+    if n_menores >= 3:
+        return (
+            "REPETIR",
+            "🟡 Riesgo clínico / interconsulta* — ≥3 criterios menores"
+        )
+
+    return (
+        "NEGATIVO",
+        "🟢 Bajo riesgo"
+    )
+
+
+# ============================================================
 # MEDICIONES
 # ============================================================
 
@@ -363,7 +501,15 @@ def build_case_record(case, result):
         "%Y-%m-%d %H:%M:%S"
     )
 
-    last = case["measurements"][-1]
+    has_sensor = case.get("has_sensor", True)
+
+    measurements = case.get("measurements", [])
+
+    last = (
+        measurements[-1]
+        if measurements
+        else None
+    )
 
     return {
         "case_id": case["case_id"],
@@ -376,12 +522,20 @@ def build_case_record(case, result):
         "location": st.session_state.facility["location"],
         "altitude": st.session_state.facility["altitude_range"],
 
-        "preductal": last["preductal"],
-        "postductal": last["postductal"],
-        "difference": last["difference"],
+        "has_sensor": has_sensor,
 
-        "measurements": case["measurements"],
-        "repeat_count": len(case["measurements"]) - 1,
+        "preductal": last["preductal"] if last else None,
+        "postductal": last["postductal"] if last else None,
+        "difference": last["difference"] if last else None,
+
+        "measurements": measurements,
+        "repeat_count": max(len(measurements) - 1, 0),
+
+        "andes_result": case.get("andes_result"),
+
+        "clinical_mayores": case.get("clinical_mayores", []),
+        "clinical_menores": case.get("clinical_menores", []),
+        "risk_label": case.get("risk_label", ""),
 
         "result": result,
         "timestamp": now,
@@ -965,7 +1119,60 @@ elif st.session_state.screen == "Nuevo tamizaje":
             "measurements": [],
         }
 
-        go("Mano derecha")
+        go("Sensor")
+
+
+# ============================================================
+# ¿CUENTA CON SENSOR NEONATAL COMPATIBLE?
+# ============================================================
+
+elif st.session_state.screen == "Sensor":
+
+    st.title(
+        "¿Cuenta con sensor neonatal compatible?"
+    )
+
+    st.markdown(
+        '<div class="step-box">'
+        '💡 El oxímetro de pulso es la primera opción y la '
+        'evaluación clínica LatidoSeguro-CHD complementa el '
+        'resultado. Si no hay sensor disponible, la evaluación '
+        'clínica se usa como estratificación de riesgo, pero '
+        '<b>no reemplaza</b> el tamizaje por oximetría.'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    st.write("")
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+
+        if st.button(
+            "✅ Sí, tengo sensor",
+            type="primary",
+            use_container_width=True
+        ):
+
+            st.session_state.current_case[
+                "has_sensor"
+            ] = True
+
+            go("Mano derecha")
+
+    with c2:
+
+        if st.button(
+            "❌ No tengo sensor",
+            use_container_width=True
+        ):
+
+            st.session_state.current_case[
+                "has_sensor"
+            ] = False
+
+            go("Criterios clínicos")
 
 
 # ============================================================
@@ -1098,7 +1305,130 @@ elif st.session_state.screen == "Pie":
             entry
         )
 
-        st.session_state.result = result
+        case["andes_result"] = result
+
+        go("Criterios clínicos")
+
+
+# ============================================================
+# CRITERIOS CLÍNICOS (2B — EVALUACIÓN CLÍNICA DE RIESGO)
+# ============================================================
+
+elif st.session_state.screen == "Criterios clínicos":
+
+    case = (
+        st.session_state.current_case
+    )
+
+    has_sensor = case.get(
+        "has_sensor",
+        True
+    )
+
+    if has_sensor:
+
+        st.title(
+            "Evaluación clínica complementaria"
+        )
+
+        st.caption(
+            "LatidoSeguro-CHD — se combina con el resultado de "
+            "oximetría (ANDES-CHD) ya registrado."
+        )
+
+    else:
+
+        st.title(
+            "2B. Evaluación clínica de riesgo"
+        )
+
+        st.warning(
+            "⚠️ No reemplaza la oximetría. Esta evaluación se usa "
+            "como estratificación de riesgo porque no hay sensor "
+            "neonatal disponible."
+        )
+
+    st.write("")
+
+    st.markdown(
+        "#### 🔴 Criterios mayores"
+    )
+
+    mayores_selected = []
+
+    for key, label, helptext in MAYOR_CRITERIA:
+
+        checked = st.checkbox(
+            label,
+            key=f"mayor_{key}",
+            help=helptext
+        )
+
+        if checked:
+
+            mayores_selected.append(
+                key
+            )
+
+    st.write("")
+
+    st.markdown(
+        "#### 🟡 Criterios menores"
+    )
+
+    menores_selected = []
+
+    for key, label, helptext in MINOR_CRITERIA:
+
+        checked = st.checkbox(
+            label,
+            key=f"menor_{key}",
+            help=helptext
+        )
+
+        if checked:
+
+            menores_selected.append(
+                key
+            )
+
+    st.write("")
+
+    st.caption(
+        f"Mayores marcados: {len(mayores_selected)} · "
+        f"Menores marcados: {len(menores_selected)}"
+    )
+
+    if st.button(
+        "Evaluar riesgo clínico ➜",
+        type="primary",
+        use_container_width=True
+    ):
+
+        case["clinical_mayores"] = mayores_selected
+        case["clinical_menores"] = menores_selected
+
+        if has_sensor:
+
+            final_result, label = combine_andes_clinical(
+                case.get(
+                    "andes_result",
+                    "REPETIR"
+                ),
+                len(mayores_selected),
+                len(menores_selected)
+            )
+
+        else:
+
+            final_result, label = classify_clinical_only(
+                len(mayores_selected),
+                len(menores_selected)
+            )
+
+        case["risk_label"] = label
+
+        st.session_state.result = final_result
 
         go("Resultado")
 
@@ -1119,51 +1449,136 @@ elif st.session_state.screen == "Resultado":
         st.session_state.result
     )
 
+    has_sensor = case.get(
+        "has_sensor",
+        True
+    )
+
+    measurements = case.get(
+        "measurements",
+        []
+    )
+
     last = (
-        case["measurements"][-1]
+        measurements[-1]
+        if measurements
+        else None
     )
 
-    st.metric(
-        "Saturación preductal",
-        f'{last["preductal"]}%'
-    )
+    if has_sensor and last:
 
-    st.metric(
-        "Saturación posductal",
-        f'{last["postductal"]}%'
-    )
+        st.metric(
+            "Saturación preductal",
+            f'{last["preductal"]}%'
+        )
 
-    st.metric(
-        "Diferencia",
-        f'{last["difference"]:.0f}%'
-    )
+        st.metric(
+            "Saturación posductal",
+            f'{last["postductal"]}%'
+        )
 
-    st.caption(
-        f'Algoritmo seleccionado: '
-        f'{st.session_state.facility["altitude_range"]}'
-    )
+        st.metric(
+            "Diferencia",
+            f'{last["difference"]:.0f}%'
+        )
 
-    if len(case["measurements"]) > 1:
+        st.caption(
+            f'Algoritmo seleccionado: '
+            f'{st.session_state.facility["altitude_range"]}'
+        )
 
-        with st.expander(
-            "Mediciones anteriores"
-        ):
+        if len(measurements) > 1:
 
-            for i, m in enumerate(
-                case["measurements"][:-1],
-                start=1
+            with st.expander(
+                "Mediciones anteriores"
             ):
 
+                for i, m in enumerate(
+                    measurements[:-1],
+                    start=1
+                ):
+
+                    st.write(
+                        f'#{i} — Preductal '
+                        f'{m["preductal"]}% · '
+                        f'Posductal '
+                        f'{m["postductal"]}% · '
+                        f'Diferencia '
+                        f'{m["difference"]:.0f}% · '
+                        f'{m["result"]} · '
+                        f'{m["timestamp"]}'
+                    )
+
+    else:
+
+        st.warning(
+            "📋 Tamizaje por oximetría NO realizado. Resultado "
+            "basado únicamente en evaluación clínica LatidoSeguro-CHD."
+        )
+
+    mayores = case.get(
+        "clinical_mayores",
+        []
+    )
+
+    menores = case.get(
+        "clinical_menores",
+        []
+    )
+
+    if mayores or menores:
+
+        with st.expander(
+            "Criterios clínicos marcados",
+            expanded=not has_sensor
+        ):
+
+            mayor_labels = {
+                key: label
+                for key, label, _ in MAYOR_CRITERIA
+            }
+
+            minor_labels = {
+                key: label
+                for key, label, _ in MINOR_CRITERIA
+            }
+
+            if mayores:
+
                 st.write(
-                    f'#{i} — Preductal '
-                    f'{m["preductal"]}% · '
-                    f'Posductal '
-                    f'{m["postductal"]}% · '
-                    f'Diferencia '
-                    f'{m["difference"]:.0f}% · '
-                    f'{m["result"]} · '
-                    f'{m["timestamp"]}'
+                    "**Mayores:** " + ", ".join(
+                        mayor_labels.get(k, k)
+                        for k in mayores
+                    )
                 )
+
+            else:
+
+                st.write("**Mayores:** ninguno")
+
+            if menores:
+
+                st.write(
+                    "**Menores:** " + ", ".join(
+                        minor_labels.get(k, k)
+                        for k in menores
+                    )
+                )
+
+            else:
+
+                st.write("**Menores:** ninguno")
+
+    risk_label = case.get(
+        "risk_label",
+        ""
+    )
+
+    if risk_label:
+
+        st.info(
+            f"**Clasificación LatidoSeguro-CHD:** {risk_label}"
+        )
 
 
     # ========================================================
@@ -1376,13 +1791,31 @@ elif st.session_state.screen == "NeoLink Alerta":
         st.session_state.current_case
     )
 
+    measurements = case.get(
+        "measurements",
+        []
+    )
+
     last = (
-        case["measurements"][-1]
+        measurements[-1]
+        if measurements
+        else None
     )
 
     st.error(
         "TAMIZAJE POSITIVO — Requiere evaluación médica inmediata."
     )
+
+    risk_label = case.get(
+        "risk_label",
+        ""
+    )
+
+    if risk_label:
+
+        st.caption(
+            risk_label
+        )
 
     st.markdown(
         """
@@ -1405,6 +1838,16 @@ elif st.session_state.screen == "NeoLink Alerta":
     st.markdown(
         "### Ficha NeoLink Alerta"
     )
+
+    mayor_labels = {
+        key: label
+        for key, label, _ in MAYOR_CRITERIA
+    }
+
+    minor_labels = {
+        key: label
+        for key, label, _ in MINOR_CRITERIA
+    }
 
     data = {
 
@@ -1432,17 +1875,35 @@ elif st.session_state.screen == "NeoLink Alerta":
                 ""
             ),
 
+        "Sensor neonatal disponible":
+            "Sí" if case.get("has_sensor", True) else "No",
+
         "Saturación preductal":
-            f'{last["preductal"]}%',
+            f'{last["preductal"]}%' if last else "No realizado",
 
         "Saturación posductal":
-            f'{last["postductal"]}%',
+            f'{last["postductal"]}%' if last else "No realizado",
 
         "Diferencia":
-            f'{last["difference"]:.0f}%',
+            f'{last["difference"]:.0f}%' if last else "—",
 
         "Mediciones anteriores":
-            len(case["measurements"]) - 1,
+            max(len(measurements) - 1, 0),
+
+        "Criterios mayores":
+            [
+                mayor_labels.get(k, k)
+                for k in case.get("clinical_mayores", [])
+            ],
+
+        "Criterios menores":
+            [
+                minor_labels.get(k, k)
+                for k in case.get("clinical_menores", [])
+            ],
+
+        "Clasificación LatidoSeguro-CHD":
+            case.get("risk_label", ""),
 
         "Resultado":
             "POSITIVO",
@@ -1549,6 +2010,11 @@ elif st.session_state.screen == "Pendientes":
                     key=f'repeat_{case["case_id"]}'
                 ):
 
+                    has_sensor = case.get(
+                        "has_sensor",
+                        True
+                    )
+
                     st.session_state.current_case = {
 
                         "case_id":
@@ -1569,9 +2035,24 @@ elif st.session_state.screen == "Pendientes":
                                 ""
                             ),
 
+                        "has_sensor":
+                            has_sensor,
+
                         "measurements":
                             case.get(
                                 "measurements",
+                                []
+                            ),
+
+                        "clinical_mayores":
+                            case.get(
+                                "clinical_mayores",
+                                []
+                            ),
+
+                        "clinical_menores":
+                            case.get(
+                                "clinical_menores",
                                 []
                             ),
 
@@ -1593,7 +2074,13 @@ elif st.session_state.screen == "Pendientes":
                             ),
                     }
 
-                    go("Mano derecha")
+                    if has_sensor:
+
+                        go("Mano derecha")
+
+                    else:
+
+                        go("Criterios clínicos")
 
 
 # ============================================================
@@ -1634,14 +2121,29 @@ elif st.session_state.screen == "Alertas":
                     f'Caso: {case["case_id"]}'
                 )
 
-                st.write(
-                    f'Preductal: '
-                    f'{case["preductal"]}% · '
-                    f'Posductal: '
-                    f'{case["postductal"]}% · '
-                    f'Diferencia: '
-                    f'{case["difference"]:.0f}%'
-                )
+                if case.get("preductal") is not None:
+
+                    st.write(
+                        f'Preductal: '
+                        f'{case["preductal"]}% · '
+                        f'Posductal: '
+                        f'{case["postductal"]}% · '
+                        f'Diferencia: '
+                        f'{case["difference"]:.0f}%'
+                    )
+
+                else:
+
+                    st.write(
+                        "Sin oximetría — activada por criterios "
+                        "clínicos LatidoSeguro-CHD."
+                    )
+
+                if case.get("risk_label"):
+
+                    st.caption(
+                        case["risk_label"]
+                    )
 
                 st.write(
                     f'Estado de sincronización: '
@@ -2008,26 +2510,53 @@ elif st.session_state.screen == "Dashboard":
 
                 "casos":
                     count,
-
-                "size":
-                    8000 + count * 6000,
             })
 
         map_df = pd.DataFrame(
             map_rows
         )
 
-        st.map(
-            map_df,
-            latitude="lat",
-            longitude="lon",
-            size="size",
-            color="#7A1212"
+        # Vista fija centrada en Perú (no se ajusta a los puntos),
+        # para que el mapa siempre quede acotado al país.
+        view_state = pdk.ViewState(
+            latitude=-9.19,
+            longitude=-75.0152,
+            zoom=4.4,
+            pitch=0,
         )
 
+        # radius_min/max_pixels limita el tamaño del punto en
+        # pantalla sin importar el zoom, para que los círculos no
+        # crezcan hasta tapar el mapa cuando hay muchos casos.
+        scatter_layer = pdk.Layer(
+            "ScatterplotLayer",
+            data=map_df,
+            get_position="[lon, lat]",
+            get_fill_color="[122, 18, 18, 170]",
+            get_line_color="[255, 255, 255, 200]",
+            line_width_min_pixels=1,
+            get_radius="casos",
+            radius_scale=6000,
+            radius_min_pixels=8,
+            radius_max_pixels=28,
+            pickable=True,
+        )
+
+        deck = pdk.Deck(
+            layers=[scatter_layer],
+            initial_view_state=view_state,
+            map_style=None,
+            tooltip={
+                "text": "{departamento}: {casos} caso(s)"
+            },
+        )
+
+        st.pydeck_chart(deck)
+
         st.caption(
-            "El tamaño del punto rojo indica "
-            "la cantidad de Cardio Alertas positivas."
+            "El tamaño del punto rojo indica la cantidad de "
+            "Cardio Alertas positivas. El mapa queda acotado al "
+            "Perú independientemente de la cantidad de casos."
         )
 
         for dept, count in sorted(
