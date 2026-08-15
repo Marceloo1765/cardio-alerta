@@ -34,48 +34,119 @@ HOURS_LIFE_OPTIONS = [
 # Complementa la oximetría (ANDES-CHD) cuando está disponible.
 # Si no hay sensor neonatal, funciona como estratificación
 # clínica pero NO sustituye el tamizaje por oximetría.
+#
+# Cada criterio incluye:
+#   key        -> identificador interno
+#   code       -> código clínico (M1..M5 / m1..m6)
+#   label      -> nombre del criterio
+#   how_to     -> guía paso a paso de CÓMO EVALUARLO (se muestra
+#                 ANTES de preguntar si el criterio está presente,
+#                 igual que las pantallas de oximetría)
 # ============================================================
 
 MAYOR_CRITERIA = [
-    ("cianosis", "Cianosis central persistente",
-     "Coloración azulada de lengua, mucosa oral/labios o tronco. "
-     "El test de hiperoxia con O₂ al 100%, si corresponde, puede "
-     "apoyar el diferencial cardíaco vs. respiratorio."),
-    ("pulsos", "Alteración de pulsos / perfusión diferencial",
-     "Pulsos femorales ausentes o marcadamente disminuidos respecto "
-     "a braquiales, y/o diferencia evidente de perfusión, color o "
-     "temperatura entre extremidades superiores e inferiores."),
-    ("shock", "Signos de shock / hipoperfusión",
-     "Llenado capilar >3 s, pulsos débiles generalizados, "
-     "palidez/grisáceo, extremidades frías."),
-    ("distres", "Dificultad respiratoria significativa",
-     "Disociación toracoabdominal, tiraje intercostal, retracción "
-     "xifoidea, aleteo nasal y quejido espiratorio "
-     "(Test de Silverman-Andersen)."),
-    ("prenatal", "Sospecha prenatal de cardiopatía congénita",
-     "Ecografía obstétrica / ecocardiografía fetal con hallazgo "
-     "sugestivo de cardiopatía congénita significativa."),
+    (
+        "cianosis", "M1", "Cianosis central persistente",
+        "Observe la coloración de la lengua, la mucosa oral/labios "
+        "y el tronco del recién nacido.\n\n"
+        "Si está disponible y clínicamente corresponde, realice el "
+        "**test de hiperoxia** con O₂ al 100% durante unos minutos: "
+        "esto puede apoyar el diferencial cardíaco vs. respiratorio. "
+        "Una **escasa respuesta** (la saturación no mejora) aumenta "
+        "la sospecha de causa cardíaca. La ausencia del test **no "
+        "descarta** cardiopatía por sí sola."
+    ),
+    (
+        "pulsos", "M2", "Alteración de pulsos / perfusión diferencial",
+        "Palpe los pulsos femorales y compárelos con los braquiales.\n\n"
+        "Marque este criterio si los pulsos femorales están "
+        "**ausentes o marcadamente disminuidos** respecto a los "
+        "braquiales, y/o si hay una diferencia evidente de "
+        "perfusión, color o temperatura entre las extremidades "
+        "superiores e inferiores."
+    ),
+    (
+        "shock", "M3", "Signos de shock / hipoperfusión",
+        "Evalúe llenado capilar, pulsos, color y temperatura.\n\n"
+        "Marque este criterio si observa llenado capilar >3 s, "
+        "pulsos débiles generalizados, palidez o color grisáceo, "
+        "extremidades frías u otros signos clínicos de "
+        "hipoperfusión."
+    ),
+    (
+        "distres", "M4", "Dificultad respiratoria significativa",
+        "Evalúela objetivamente con el **Test de Silverman-Andersen "
+        "(0–10)**, calificando cada ítem:\n\n"
+        "- Disociación toracoabdominal\n"
+        "- Tiraje intercostal\n"
+        "- Retracción xifoidea\n"
+        "- Aleteo nasal\n"
+        "- Quejido espiratorio\n\n"
+        "Registre el puntaje obtenido en LatidoSeguro."
+    ),
+    (
+        "prenatal", "M5", "Sospecha prenatal de cardiopatía congénita",
+        "Revise la ecografía obstétrica y/o la ecocardiografía "
+        "fetal.\n\n"
+        "Marque este criterio si existe un hallazgo sugestivo de "
+        "cardiopatía congénita significativa en esos estudios."
+    ),
 ]
 
 MINOR_CRITERIA = [
-    ("soplo", "Soplo cardíaco",
-     "Identificado a la auscultación. No se considera mayor "
-     "aisladamente por su limitada especificidad en el RN."),
-    ("taquicardia", "Taquicardia persistente",
-     "FC persistentemente elevada en reposo, descartando primero "
-     "llanto, fiebre u otra explicación evidente."),
-    ("lactancia", "Alteración durante la lactancia",
-     "Fatiga, pausas frecuentes, mala succión y/o diaforesis "
-     "excesiva durante la alimentación."),
-    ("familiar", "Antecedente familiar",
-     "Cardiopatía congénita en familiar de primer grado."),
-    ("materno", "Factores de riesgo materno/prenatal",
-     "Antecedentes maternos relevantes identificados durante la "
-     "historia prenatal."),
-    ("sindrome", "Fenotipo/síndrome asociado a cardiopatía congénita",
-     "Hallazgos físicos que hagan sospechar un síndrome con "
-     "asociación conocida a cardiopatías congénitas."),
+    (
+        "soplo", "m1", "Soplo cardíaco",
+        "Ausculte el corazón del recién nacido en un ambiente "
+        "tranquilo.\n\n"
+        "Marque este criterio si identifica un soplo cardíaco. "
+        "Por su limitada especificidad en el RN, **no se considera "
+        "mayor aisladamente**."
+    ),
+    (
+        "taquicardia", "m2", "Taquicardia persistente",
+        "Controle la frecuencia cardíaca en reposo.\n\n"
+        "Antes de marcar este criterio, **descarte primero** llanto, "
+        "fiebre u otra explicación evidente. Márquelo solo si la FC "
+        "permanece persistentemente elevada en reposo."
+    ),
+    (
+        "lactancia", "m3", "Alteración durante la lactancia",
+        "Observe al recién nacido durante una toma.\n\n"
+        "Marque este criterio si presenta fatiga, pausas frecuentes, "
+        "mala succión y/o diaforesis (sudoración) excesiva durante "
+        "la alimentación."
+    ),
+    (
+        "familiar", "m4", "Antecedente familiar",
+        "Revise la historia familiar durante la anamnesis.\n\n"
+        "Marque este criterio si hay cardiopatía congénita en un "
+        "familiar de primer grado."
+    ),
+    (
+        "materno", "m5", "Factores de riesgo materno/prenatal",
+        "Revise la historia prenatal materna.\n\n"
+        "Marque este criterio si se identifican antecedentes "
+        "maternos relevantes (por ejemplo, diabetes gestacional, "
+        "infecciones, exposición a teratógenos, entre otros según "
+        "protocolo institucional)."
+    ),
+    (
+        "sindrome", "m6", "Fenotipo/síndrome asociado a cardiopatía "
+        "congénita",
+        "Realice el examen físico general del recién nacido.\n\n"
+        "Marque este criterio si hay hallazgos físicos que hagan "
+        "sospechar un síndrome con asociación conocida a "
+        "cardiopatías congénitas."
+    ),
 ]
+
+# Lista combinada para el asistente paso a paso: cada elemento
+# lleva además el tipo ("mayor" / "menor") para poder clasificar
+# al final del recorrido.
+ALL_CRITERIA = (
+    [("mayor",) + c for c in MAYOR_CRITERIA]
+    + [("menor",) + c for c in MINOR_CRITERIA]
+)
 
 # ============================================================
 # DEPARTAMENTOS DEL PERÚ
@@ -158,6 +229,12 @@ if "current_case" not in st.session_state:
 
 if "result" not in st.session_state:
     st.session_state.result = None
+
+if "history_next_screen" not in st.session_state:
+    st.session_state.history_next_screen = "Inicio"
+
+if "history_record" not in st.session_state:
+    st.session_state.history_record = None
 
 
 # ============================================================
@@ -291,6 +368,28 @@ st.markdown("""
     border-radius: 8px;
     font-size: 15.5px;
     line-height: 1.7;
+}
+
+.criteria-code {
+    display: inline-block;
+    background: var(--nl-navy);
+    color: #ffffff;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+.criteria-code.minor {
+    background: var(--nl-blue);
+}
+
+.history-section h4 {
+    color: var(--nl-navy);
+    border-bottom: 2px solid var(--nl-cyan);
+    padding-bottom: 4px;
+    margin-top: 18px;
 }
 
 .altitude-badge {
@@ -689,6 +788,177 @@ def get_all_cases():
         ] = case
 
     return list(cases_dict.values())
+
+
+# ============================================================
+# HISTORIA CLÍNICA (RESUMEN FINAL PARA TODOS LOS RESULTADOS)
+# ============================================================
+
+def render_historia_clinica(record, next_screen, next_label):
+
+    st.title("🗂️ Historia clínica del tamizaje")
+
+    st.caption(
+        "Resumen final del caso. Se genera automáticamente al "
+        "cerrar el tamizaje, sin importar el resultado."
+    )
+
+    result = record.get("result", "")
+
+    badge = {
+        "NEGATIVO": ("🟢 NEGATIVO", "result-green"),
+        "REPETIR": ("🟡 REPETIR", "result-yellow"),
+        "POSITIVO": ("🔴 POSITIVO", "result-red"),
+    }.get(result, (result, "card"))
+
+    st.markdown(
+        f'<div class="{badge[1]}"><h2>{badge[0]}</h2></div>',
+        unsafe_allow_html=True
+    )
+
+    st.write("")
+
+    st.markdown('<div class="history-section">', unsafe_allow_html=True)
+
+    st.markdown("#### 🧾 Datos generales")
+
+    g1, g2 = st.columns(2)
+
+    with g1:
+        st.write(f"**RN:** {record.get('rn_id', '—')}")
+        st.write(f"**Caso:** {record.get('case_id', '—')}")
+        st.write(
+            f"**Edad gestacional:** "
+            f"{record.get('gestational_age', '—')} semanas"
+        )
+        st.write(f"**Horas de vida:** {record.get('hours_life', '—')}")
+
+    with g2:
+        st.write(f"**Establecimiento:** {record.get('facility', '—')}")
+        st.write(f"**Ubicación:** {record.get('location', '—')}")
+        st.write(f"**Altitud:** {record.get('altitude', '—')}")
+        st.write(
+            f"**Registrado:** {record.get('registered_at', '—')}"
+        )
+
+    st.markdown("#### 🩺 Tamizaje por oximetría (ANDES-CHD)")
+
+    if record.get("has_sensor", True) and record.get("preductal") is not None:
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Preductal", f"{record['preductal']}%")
+        m2.metric("Posductal", f"{record['postductal']}%")
+        m3.metric("Diferencia", f"{record['difference']:.0f}%")
+
+        st.caption(
+            f"Resultado ANDES-CHD: {record.get('andes_result', '—')} · "
+            f"Repeticiones realizadas: {record.get('repeat_count', 0)}"
+        )
+
+        measurements = record.get("measurements", [])
+
+        if len(measurements) > 1:
+
+            with st.expander("Ver todas las mediciones"):
+
+                for i, m in enumerate(measurements, start=1):
+
+                    st.write(
+                        f'#{i} — Preductal {m["preductal"]}% · '
+                        f'Posductal {m["postductal"]}% · '
+                        f'Diferencia {m["difference"]:.0f}% · '
+                        f'{m["result"]} · {m["timestamp"]}'
+                    )
+
+    else:
+
+        st.info(
+            "No se realizó tamizaje por oximetría — sin sensor "
+            "neonatal disponible. Se usó evaluación clínica "
+            "LatidoSeguro-CHD como estratificación de riesgo."
+        )
+
+    st.markdown("#### 🫀 Evaluación clínica LatidoSeguro-CHD")
+
+    mayor_info = {c[0]: c for c in MAYOR_CRITERIA}
+    minor_info = {c[0]: c for c in MINOR_CRITERIA}
+
+    mayores = record.get("clinical_mayores", [])
+    menores = record.get("clinical_menores", [])
+
+    if mayores or menores:
+
+        if mayores:
+            st.write("**Criterios mayores presentes:**")
+            for k in mayores:
+                info = mayor_info.get(k)
+                if info:
+                    st.write(f"- `{info[1]}` {info[2]}")
+        else:
+            st.write("**Criterios mayores presentes:** ninguno")
+
+        if menores:
+            st.write("**Criterios menores presentes:**")
+            for k in menores:
+                info = minor_info.get(k)
+                if info:
+                    st.write(f"- `{info[1]}` {info[2]}")
+        else:
+            st.write("**Criterios menores presentes:** ninguno")
+
+    else:
+
+        st.write("No se registró evaluación clínica de criterios.")
+
+    if record.get("risk_label"):
+        st.info(f"**Clasificación LatidoSeguro-CHD:** {record['risk_label']}")
+
+    st.markdown("#### 📋 Seguimiento y educación")
+
+    if result == "NEGATIVO":
+        st.write(
+            f"Orientación a padres/cuidadores realizada: "
+            f"{'Sí' if record.get('orientation_done') else 'No'}"
+        )
+        st.write(
+            f"Cartilla entregada: "
+            f"{'Sí' if record.get('booklet_delivered') else 'No'}"
+        )
+
+    if record.get("teleorientacion"):
+        st.write(f"Teleorientación: {record['teleorientacion']}")
+
+    if result == "POSITIVO":
+        st.write(
+            f"Referencia iniciada: "
+            f"{'Sí' if record.get('referencia_iniciada') else 'No'}"
+        )
+        st.write(
+            f"Traslado registrado: "
+            f"{'Sí' if record.get('traslado_registrado') else 'No'}"
+        )
+        st.write(
+            f"Atención especializada: "
+            f"{'Sí' if record.get('atencion_especializada') else 'No'}"
+        )
+
+    st.markdown("#### ☁️ Registro")
+
+    st.write(f"Estado de sincronización: {record.get('sync_status', '—')}")
+    st.write(f"Fecha/hora de cierre: {record.get('timestamp', '—')}")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.write("")
+
+    if st.button(
+        f"Continuar ➜ {next_label}",
+        type="primary",
+        use_container_width=True
+    ):
+        st.session_state.history_record = None
+        st.session_state.current_case = None
+        go(next_screen)
 
 
 # ============================================================
@@ -1311,8 +1581,16 @@ elif st.session_state.screen == "Pie":
 
 
 # ============================================================
-# CRITERIOS CLÍNICOS (2B — EVALUACIÓN CLÍNICA DE RIESGO)
+# CRITERIOS CLÍNICOS — ASISTENTE PASO A PASO
 # ============================================================
+#
+# Igual que las pantallas de oximetría (Mano derecha / Pie), cada
+# criterio se presenta en dos partes dentro del mismo paso:
+#   1) CÓMO EVALUARLO (guía clínica) — se lee primero
+#   2) La pregunta "¿Está presente?" — se responde después
+#
+# El recorrido avanza un criterio a la vez (mayores primero,
+# luego menores) usando el índice guardado en el caso actual.
 
 elif st.session_state.screen == "Criterios clínicos":
 
@@ -1325,112 +1603,202 @@ elif st.session_state.screen == "Criterios clínicos":
         True
     )
 
-    if has_sensor:
+    if "_criteria_idx" not in case:
+        case["_criteria_idx"] = 0
 
-        st.title(
-            "Evaluación clínica complementaria"
+    if "_criteria_answers" not in case:
+        case["_criteria_answers"] = dict(
+            zip(
+                [c[1] for c in ALL_CRITERIA],
+                [False] * len(ALL_CRITERIA)
+            )
         )
 
+    idx = case["_criteria_idx"]
+    total_steps = len(ALL_CRITERIA)
+
+    if has_sensor:
+        st.title("Evaluación clínica complementaria")
         st.caption(
             "LatidoSeguro-CHD — se combina con el resultado de "
             "oximetría (ANDES-CHD) ya registrado."
         )
-
     else:
-
-        st.title(
-            "2B. Evaluación clínica de riesgo"
-        )
-
+        st.title("2B. Evaluación clínica de riesgo")
         st.warning(
             "⚠️ No reemplaza la oximetría. Esta evaluación se usa "
             "como estratificación de riesgo porque no hay sensor "
             "neonatal disponible."
         )
 
-    st.write("")
+    # --------------------------------------------------------
+    # Recorrido criterio por criterio
+    # --------------------------------------------------------
 
-    st.markdown(
-        "#### 🔴 Criterios mayores"
-    )
+    if idx < total_steps:
 
-    mayores_selected = []
+        tipo, key, code, label, how_to = ALL_CRITERIA[idx]
 
-    for key, label, helptext in MAYOR_CRITERIA:
+        st.progress((idx) / total_steps)
 
-        checked = st.checkbox(
-            label,
-            key=f"mayor_{key}",
-            help=helptext
+        badge_class = "criteria-code" if tipo == "mayor" else "criteria-code minor"
+        icon = "🔴" if tipo == "mayor" else "🟡"
+
+        st.subheader(
+            f"Paso {idx + 1} de {total_steps} · "
+            f"{icon} Criterio {'mayor' if tipo == 'mayor' else 'menor'}"
         )
 
-        if checked:
-
-            mayores_selected.append(
-                key
-            )
-
-    st.write("")
-
-    st.markdown(
-        "#### 🟡 Criterios menores"
-    )
-
-    menores_selected = []
-
-    for key, label, helptext in MINOR_CRITERIA:
-
-        checked = st.checkbox(
-            label,
-            key=f"menor_{key}",
-            help=helptext
+        st.markdown(
+            f'<span class="{badge_class}">{code}</span>'
+            f'<b>{label}</b>',
+            unsafe_allow_html=True
         )
 
-        if checked:
+        st.write("")
 
-            menores_selected.append(
-                key
+        st.markdown(
+            "**Cómo evaluarlo:**"
+        )
+
+        st.markdown(
+            f'<div class="step-box">{how_to}</div>',
+            unsafe_allow_html=True
+        )
+
+        st.write("")
+
+        current_answer = case["_criteria_answers"].get(key, False)
+
+        present = st.radio(
+            "¿El criterio está presente, según la evaluación anterior?",
+            ["No", "Sí"],
+            index=1 if current_answer else 0,
+            key=f"criteria_radio_{key}",
+            horizontal=True
+        )
+
+        nav1, nav2 = st.columns(2)
+
+        with nav1:
+
+            if idx > 0:
+
+                if st.button(
+                    "⬅ Anterior",
+                    use_container_width=True
+                ):
+
+                    case["_criteria_answers"][key] = (present == "Sí")
+                    case["_criteria_idx"] = idx - 1
+                    st.rerun()
+
+        with nav2:
+
+            btn_label = (
+                "Siguiente ➜"
+                if idx < total_steps - 1
+                else "Finalizar evaluación ➜"
             )
 
-    st.write("")
+            if st.button(
+                btn_label,
+                type="primary",
+                use_container_width=True
+            ):
 
-    st.caption(
-        f"Mayores marcados: {len(mayores_selected)} · "
-        f"Menores marcados: {len(menores_selected)}"
-    )
+                case["_criteria_answers"][key] = (present == "Sí")
+                case["_criteria_idx"] = idx + 1
+                st.rerun()
 
-    if st.button(
-        "Evaluar riesgo clínico ➜",
-        type="primary",
-        use_container_width=True
-    ):
+    # --------------------------------------------------------
+    # Fin del recorrido: calcular y clasificar
+    # --------------------------------------------------------
 
-        case["clinical_mayores"] = mayores_selected
-        case["clinical_menores"] = menores_selected
+    else:
 
-        if has_sensor:
+        answers = case["_criteria_answers"]
 
-            final_result, label = combine_andes_clinical(
-                case.get(
-                    "andes_result",
-                    "REPETIR"
-                ),
-                len(mayores_selected),
-                len(menores_selected)
+        mayores_selected = [
+            c[0] for c in MAYOR_CRITERIA if answers.get(c[1], False)
+        ]
+
+        menores_selected = [
+            c[0] for c in MINOR_CRITERIA if answers.get(c[1], False)
+        ]
+
+        st.success(
+            "✅ Evaluación clínica completa. Revise el resumen antes "
+            "de continuar."
+        )
+
+        st.write(
+            f"🔴 Criterios mayores presentes: {len(mayores_selected)} · "
+            f"🟡 Criterios menores presentes: {len(menores_selected)}"
+        )
+
+        if mayores_selected:
+            mayor_labels = {c[0]: c[2] for c in MAYOR_CRITERIA}
+            st.write(
+                "**Mayores:** " + ", ".join(
+                    mayor_labels[k] for k in mayores_selected
+                )
             )
 
-        else:
-
-            final_result, label = classify_clinical_only(
-                len(mayores_selected),
-                len(menores_selected)
+        if menores_selected:
+            minor_labels = {c[0]: c[2] for c in MINOR_CRITERIA}
+            st.write(
+                "**Menores:** " + ", ".join(
+                    minor_labels[k] for k in menores_selected
+                )
             )
 
-        case["risk_label"] = label
+        nav1, nav2 = st.columns(2)
 
-        st.session_state.result = final_result
+        with nav1:
 
-        go("Resultado")
+            if st.button(
+                "⬅ Revisar criterios",
+                use_container_width=True
+            ):
+
+                case["_criteria_idx"] = total_steps - 1
+                st.rerun()
+
+        with nav2:
+
+            if st.button(
+                "Confirmar y clasificar riesgo ➜",
+                type="primary",
+                use_container_width=True
+            ):
+
+                case["clinical_mayores"] = mayores_selected
+                case["clinical_menores"] = menores_selected
+
+                if has_sensor:
+
+                    final_result, label = combine_andes_clinical(
+                        case.get("andes_result", "REPETIR"),
+                        len(mayores_selected),
+                        len(menores_selected)
+                    )
+
+                else:
+
+                    final_result, label = classify_clinical_only(
+                        len(mayores_selected),
+                        len(menores_selected)
+                    )
+
+                case["risk_label"] = label
+
+                case.pop("_criteria_idx", None)
+                case.pop("_criteria_answers", None)
+
+                st.session_state.result = final_result
+
+                go("Resultado")
 
 
 # ============================================================
@@ -1535,12 +1903,12 @@ elif st.session_state.screen == "Resultado":
 
             mayor_labels = {
                 key: label
-                for key, label, _ in MAYOR_CRITERIA
+                for key, code, label, how_to in MAYOR_CRITERIA
             }
 
             minor_labels = {
                 key: label
-                for key, label, _ in MINOR_CRITERIA
+                for key, code, label, how_to in MINOR_CRITERIA
             }
 
             if mayores:
@@ -1661,14 +2029,10 @@ elif st.session_state.screen == "Resultado":
                 record
             )
 
-            st.success(
-                "Resultado guardado localmente. "
-                "RN dado de alta."
-            )
+            st.session_state.history_record = record
+            st.session_state.history_next_screen = "Inicio"
 
-            st.session_state.current_case = None
-
-            go("Inicio")
+            go("Historia clínica")
 
 
     # ========================================================
@@ -1729,9 +2093,10 @@ elif st.session_state.screen == "Resultado":
                 record
             )
 
-            st.session_state.current_case = None
+            st.session_state.history_record = record
+            st.session_state.history_next_screen = "Pendientes"
 
-            go("Pendientes")
+            go("Historia clínica")
 
 
     # ========================================================
@@ -1841,12 +2206,12 @@ elif st.session_state.screen == "NeoLink Alerta":
 
     mayor_labels = {
         key: label
-        for key, label, _ in MAYOR_CRITERIA
+        for key, code, label, how_to in MAYOR_CRITERIA
     }
 
     minor_labels = {
         key: label
-        for key, label, _ in MINOR_CRITERIA
+        for key, code, label, how_to in MINOR_CRITERIA
     }
 
     data = {
@@ -1911,10 +2276,35 @@ elif st.session_state.screen == "NeoLink Alerta":
 
     st.json(data)
 
+    st.write("")
+
+    st.markdown("**Proceso formal de referencia**")
+
+    c1, c2, c3 = st.columns(3)
+
+    ref = c1.checkbox(
+        "Referencia iniciada",
+        key="alert_ref"
+    )
+
+    tras = c2.checkbox(
+        "Traslado registrado",
+        key="alert_tras"
+    )
+
+    aten = c3.checkbox(
+        "Atención especializada",
+        key="alert_aten"
+    )
+
     if st.button(
         "Guardar caso localmente",
         type="primary"
     ):
+
+        case["referencia_iniciada"] = ref
+        case["traslado_registrado"] = tras
+        case["atencion_especializada"] = aten
 
         record = build_case_record(
             case,
@@ -1925,26 +2315,44 @@ elif st.session_state.screen == "NeoLink Alerta":
             record
         )
 
-        st.session_state.current_case = None
-
         if st.session_state.connection:
 
             sync_cases()
 
-            st.success(
-                "☁️ NeoLink Alerta sincronizada "
-                "con NeoLink Cloud."
-            )
+        st.session_state.history_record = record
+        st.session_state.history_next_screen = "Alertas"
 
-        else:
+        go("Historia clínica")
 
-            st.warning(
-                "📡 Sin conexión. NeoLink Alerta "
-                "guardada localmente en ALERTAS "
-                "PENDIENTES DE SINCRONIZACIÓN."
-            )
 
-        go("Alertas")
+# ============================================================
+# HISTORIA CLÍNICA (RESUMEN FINAL)
+# ============================================================
+
+elif st.session_state.screen == "Historia clínica":
+
+    record = st.session_state.history_record
+
+    if not record:
+
+        st.warning(
+            "No hay un caso recién cerrado para mostrar."
+        )
+
+        if st.button("Volver al inicio"):
+            go("Inicio")
+
+    else:
+
+        next_screen = st.session_state.history_next_screen
+
+        next_label = {
+            "Inicio": "Inicio",
+            "Pendientes": "Tamizajes pendientes",
+            "Alertas": "NeoLink Alertas",
+        }.get(next_screen, next_screen)
+
+        render_historia_clinica(record, next_screen, next_label)
 
 
 # ============================================================
@@ -2172,7 +2580,6 @@ elif st.session_state.screen == "Alertas":
 
                 # =================================================
                 # SEGUIMIENTO DEL POSITIVO
-                # SIN TELEORIENTACIÓN
                 # =================================================
 
                 st.markdown(
