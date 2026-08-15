@@ -1535,6 +1535,13 @@ with st.sidebar:
         go("Dashboard")
 
     if st.button(
+        "🗂️ Expedientes",
+        use_container_width=True,
+        disabled=nav_disabled
+    ):
+        go("Expedientes")
+
+    if st.button(
         "⚙️ Configuración del establecimiento",
         use_container_width=True
     ):
@@ -4004,7 +4011,576 @@ elif st.session_state.screen == "Dashboard":
                 f'{sync_icon}'
             )
 
+# ============================================================
+# EXPEDIENTES
+# ============================================================
 
+elif st.session_state.screen == "Expedientes":
+
+    st.title(
+        "🗂️ Expedientes de pacientes"
+    )
+
+    st.markdown(
+        """
+        <div class="step-box">
+        🔎 Busque un paciente para consultar su historial de
+        atenciones y tamizajes registrados en NeoLink.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.write("")
+
+    # ========================================================
+    # OBTENER TODOS LOS CASOS
+    # ========================================================
+
+    cases = get_all_cases()
+
+    # ========================================================
+    # AGRUPAR CASOS POR PACIENTE
+    # ========================================================
+
+    patients = {}
+
+    for case in cases:
+
+        rn_id = case.get(
+            "rn_id",
+            ""
+        )
+
+        mother_dni = case.get(
+            "mother_dni",
+            ""
+        )
+
+        rn_name = case.get(
+            "rn_name",
+            ""
+        )
+
+        # ----------------------------------------------------
+        # El código RN es el identificador principal.
+        # Si no existe, usamos DNI de la madre.
+        # ----------------------------------------------------
+
+        patient_key = (
+            rn_id
+            or mother_dni
+            or rn_name
+        )
+
+        if not patient_key:
+            continue
+
+        if patient_key not in patients:
+
+            patients[patient_key] = {
+                "rn_id":
+                    rn_id,
+
+                "rn_name":
+                    rn_name,
+
+                "mother_name":
+                    case.get(
+                        "mother_name",
+                        ""
+                    ),
+
+                "mother_dni":
+                    mother_dni,
+
+                "cases":
+                    []
+            }
+
+        patients[patient_key]["cases"].append(
+            case
+        )
+
+    # ========================================================
+    # BUSCADOR
+    # ========================================================
+
+    search = st.text_input(
+        "🔎 Buscar paciente",
+        placeholder=(
+            "Nombre del RN, código RN o DNI de la madre..."
+        )
+    )
+
+    search = search.strip().lower()
+
+    # ========================================================
+    # FILTRAR PACIENTES
+    # ========================================================
+
+    filtered_patients = []
+
+    for patient in patients.values():
+
+        searchable_text = " ".join([
+            str(
+                patient.get(
+                    "rn_name",
+                    ""
+                )
+            ),
+            str(
+                patient.get(
+                    "rn_id",
+                    ""
+                )
+            ),
+            str(
+                patient.get(
+                    "mother_name",
+                    ""
+                )
+            ),
+            str(
+                patient.get(
+                    "mother_dni",
+                    ""
+                )
+            )
+        ]).lower()
+
+        if (
+            not search
+            or search in searchable_text
+        ):
+            filtered_patients.append(
+                patient
+            )
+
+    # ========================================================
+    # SIN RESULTADOS
+    # ========================================================
+
+    if not filtered_patients:
+
+        st.info(
+            "No se encontraron pacientes con esos datos."
+        )
+
+    # ========================================================
+    # LISTADO DE PACIENTES
+    # ========================================================
+
+    else:
+
+        st.markdown(
+            f"**Pacientes encontrados: "
+            f"{len(filtered_patients)}**"
+        )
+
+        st.write("")
+
+        for patient_index, patient in enumerate(
+            filtered_patients
+        ):
+
+            patient_cases = sorted(
+                patient["cases"],
+                key=lambda x: x.get(
+                    "timestamp",
+                    x.get(
+                        "registered_at",
+                        ""
+                    )
+                )
+            )
+
+            latest_case = (
+                patient_cases[-1]
+                if patient_cases
+                else {}
+            )
+
+            # ------------------------------------------------
+            # TARJETA DEL PACIENTE
+            # ------------------------------------------------
+
+            with st.container(
+                border=True
+            ):
+
+                col1, col2 = st.columns(
+                    [3, 1]
+                )
+
+                with col1:
+
+                    st.subheader(
+                        "👶 "
+                        + (
+                            patient["rn_name"]
+                            or "Paciente sin nombre"
+                        )
+                    )
+
+                    st.write(
+                        f'**Código RN:** '
+                        f'{patient["rn_id"] or "—"}'
+                    )
+
+                    st.write(
+                        f'**Madre:** '
+                        f'{patient["mother_name"] or "—"}'
+                    )
+
+                    st.write(
+                        f'**DNI madre:** '
+                        f'{patient["mother_dni"] or "—"}'
+                    )
+
+                with col2:
+
+                    st.metric(
+                        "Atenciones",
+                        len(patient_cases)
+                    )
+
+                # ------------------------------------------------
+                # ÚLTIMA ATENCIÓN
+                # ------------------------------------------------
+
+                if latest_case:
+
+                    result = latest_case.get(
+                        "result",
+                        "—"
+                    )
+
+                    if result == "POSITIVO":
+                        result_display = (
+                            "🔴 POSITIVO"
+                        )
+
+                    elif result == "REPETIR":
+                        result_display = (
+                            "🟡 REPETIR"
+                        )
+
+                    elif result == "NEGATIVO":
+                        result_display = (
+                            "🟢 NEGATIVO"
+                        )
+
+                    else:
+                        result_display = result
+
+                    st.markdown(
+                        f"""
+                        **Última atención:**  
+                        {latest_case.get(
+                            "timestamp",
+                            latest_case.get(
+                                "registered_at",
+                                "—"
+                            )
+                        )}
+
+                        **Último resultado:**  
+                        {result_display}
+                        """
+                    )
+
+                st.write("")
+
+                # ------------------------------------------------
+                # EXPEDIENTE
+                # ------------------------------------------------
+
+                with st.expander(
+                    "📂 Ver expediente completo"
+                ):
+
+                    st.markdown(
+                        "## ❤️ Expediente NeoLink"
+                    )
+
+                    # ==========================================
+                    # DATOS DEL PACIENTE
+                    # ==========================================
+
+                    st.markdown(
+                        "### 👶 Datos del paciente"
+                    )
+
+                    c1, c2 = st.columns(2)
+
+                    with c1:
+
+                        st.markdown(
+                            f"""
+                            **Nombre completo**  
+                            {patient["rn_name"] or "No registrado"}
+                            """
+                        )
+
+                        st.markdown(
+                            f"""
+                            **Código / identificación**  
+                            {patient["rn_id"] or "No registrado"}
+                            """
+                        )
+
+                    with c2:
+
+                        st.markdown(
+                            f"""
+                            **Madre**  
+                            {patient["mother_name"] or "No registrado"}
+                            """
+                        )
+
+                        st.markdown(
+                            f"""
+                            **DNI de la madre**  
+                            {patient["mother_dni"] or "No registrado"}
+                            """
+                        )
+
+                    st.divider()
+
+                    # ==========================================
+                    # HISTORIAL
+                    # ==========================================
+
+                    st.markdown(
+                        "### 📅 Historial de atenciones"
+                    )
+
+                    # Mostrar desde la más reciente
+                    # hasta la más antigua
+
+                    for attention_number, record in enumerate(
+                        reversed(patient_cases),
+                        start=1
+                    ):
+
+                        registered_at = record.get(
+                            "registered_at",
+                            record.get(
+                                "timestamp",
+                                "Fecha no registrada"
+                            )
+                        )
+
+                        result = record.get(
+                            "result",
+                            "—"
+                        )
+
+                        if result == "POSITIVO":
+                            result_display = (
+                                "🔴 POSITIVO"
+                            )
+
+                        elif result == "REPETIR":
+                            result_display = (
+                                "🟡 REPETIR"
+                            )
+
+                        elif result == "NEGATIVO":
+                            result_display = (
+                                "🟢 NEGATIVO"
+                            )
+
+                        else:
+                            result_display = result
+
+                        st.markdown(
+                            f"#### 🩺 Atención "
+                            f"{len(patient_cases) - attention_number + 1}"
+                        )
+
+                        st.write(
+                            f"**Fecha:** {registered_at}"
+                        )
+
+                        st.write(
+                            f"**Resultado:** "
+                            f"{result_display}"
+                        )
+
+                        gestational_age = record.get(
+                            "gestational_age"
+                        )
+
+                        if gestational_age:
+                            st.write(
+                                f"**Edad gestacional:** "
+                                f"{gestational_age} semanas"
+                            )
+
+                        hours_life = record.get(
+                            "hours_life"
+                        )
+
+                        if hours_life:
+                            st.write(
+                                f"**Horas de vida:** "
+                                f"{hours_life}"
+                            )
+
+                        # --------------------------------------
+                        # OXIMETRÍA
+                        # --------------------------------------
+
+                        if (
+                            record.get(
+                                "preductal"
+                            ) is not None
+                        ):
+
+                            st.markdown(
+                                "**🫀 Oximetría**"
+                            )
+
+                            c1, c2, c3 = st.columns(3)
+
+                            with c1:
+                                st.metric(
+                                    "Preductal",
+                                    f'{record["preductal"]}%'
+                                )
+
+                            with c2:
+                                st.metric(
+                                    "Posductal",
+                                    f'{record["postductal"]}%'
+                                )
+
+                            with c3:
+                                st.metric(
+                                    "Diferencia",
+                                    f'{record["difference"]:.0f}%'
+                                )
+
+                        # --------------------------------------
+                        # CLASIFICACIÓN
+                        # --------------------------------------
+
+                        if record.get(
+                            "risk_label"
+                        ):
+
+                            st.info(
+                                "🩺 "
+                                + record["risk_label"]
+                            )
+
+                        # --------------------------------------
+                        # REFERENCIA
+                        # --------------------------------------
+
+                        referencia = (
+                            record.get(
+                                "referencia_iniciada",
+                                False
+                            )
+                        )
+
+                        traslado = (
+                            record.get(
+                                "traslado_registrado",
+                                False
+                            )
+                        )
+
+                        atencion = (
+                            record.get(
+                                "atencion_especializada",
+                                False
+                            )
+                        )
+
+                        if (
+                            referencia
+                            or traslado
+                            or atencion
+                        ):
+
+                            st.markdown(
+                                "**Proceso de referencia**"
+                            )
+
+                            if referencia:
+                                st.write(
+                                    "✅ Referencia iniciada"
+                                )
+
+                            if traslado:
+                                st.write(
+                                    "✅ Traslado registrado"
+                                )
+
+                            if atencion:
+                                st.write(
+                                    "✅ Atención especializada"
+                                )
+
+                        if attention_number < len(
+                            patient_cases
+                        ):
+                            st.divider()
+
+                    st.write("")
+
+                    # ==========================================
+                    # NUEVA ATENCIÓN
+                    # ==========================================
+
+                    st.markdown(
+                        "### ➕ Nueva atención"
+                    )
+
+                    st.caption(
+                        "El paciente puede regresar en cualquier "
+                        "momento para una nueva evaluación. "
+                        "Su expediente se mantiene asociado a "
+                        "su código de identificación."
+                    )
+
+                    if st.button(
+                        "➕ Registrar nueva atención",
+                        key=(
+                            f"new_attention_"
+                            f"{patient_index}_"
+                            f"{patient['rn_id']}"
+                        ),
+                        type="primary"
+                    ):
+
+                        st.session_state.current_case = {
+                            "case_id":
+                                f"NL-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+
+                            "rn_id":
+                                patient["rn_id"],
+
+                            "rn_name":
+                                patient["rn_name"],
+
+                            "mother_name":
+                                patient["mother_name"],
+
+                            "mother_dni":
+                                patient["mother_dni"],
+
+                            "measurements":
+                                []
+                        }
+
+                        go("Nuevo tamizaje")
+                        
 # ============================================================
 # FOOTER
 # ============================================================
