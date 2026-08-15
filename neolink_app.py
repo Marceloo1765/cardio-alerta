@@ -2844,67 +2844,267 @@ elif st.session_state.screen == "NeoLink Alerta":
         c["key"]: c["label"] for c in MINOR_CRITERIA
     }
 
-    data = {
+        # ========================================================
+    # FICHA CLÍNICA PARA EL PROFESIONAL DE SALUD
+    # ========================================================
 
-        "RN":
-            case["rn_id"],
+    st.markdown(
+        "### 📋 Ficha clínica del tamizaje"
+    )
 
-        "Establecimiento":
-            st.session_state.facility["name"],
+    # ========================================================
+    # IDENTIFICACIÓN
+    # ========================================================
 
-        "Ubicación":
-            st.session_state.facility["location"],
+    st.markdown(
+        "#### 👶 Identificación del recién nacido"
+    )
 
-        "Altitud":
-            st.session_state.facility["altitude_range"],
+    col1, col2 = st.columns(2)
 
-        "Edad gestacional":
-            f'{case["gestational_age"]} semanas',
+    with col1:
+        st.markdown(
+            f"""
+            **Nombre del RN**  
+            {case.get("rn_name", "No registrado")}
+            """
+        )
 
-        "Horas de vida":
-            case["hours_life"],
+        st.markdown(
+            f"""
+            **Código / identificación**  
+            {case.get("rn_id", "No registrado")}
+            """
+        )
 
-        "Fecha/hora de registro":
-            case.get(
-                "registered_at",
-                ""
-            ),
+        st.markdown(
+            f"""
+            **Edad gestacional**  
+            {case.get("gestational_age", "—")} semanas
+            """
+        )
 
-        "Sensor neonatal disponible":
-            "Sí" if case.get("has_sensor", True) else "No",
+    with col2:
+        st.markdown(
+            f"""
+            **Horas de vida**  
+            {case.get("hours_life", "—")}
+            """
+        )
 
-        "Saturación preductal":
-            f'{last["preductal"]}%' if last else "No realizado",
+        st.markdown(
+            f"""
+            **Fecha y hora del registro**  
+            {case.get("registered_at", "—")}
+            """
+        )
 
-        "Saturación posductal":
-            f'{last["postductal"]}%' if last else "No realizado",
+        st.markdown(
+            f"""
+            **Resultado del tamizaje**  
+            🔴 **POSITIVO**
+            """
+        )
 
-        "Diferencia":
-            f'{last["difference"]:.0f}%' if last else "—",
+    st.divider()
 
-        "Mediciones anteriores":
-            max(len(measurements) - 1, 0),
+    # ========================================================
+    # DATOS DE LA MADRE
+    # ========================================================
 
-        "Criterios mayores":
-            [
-                mayor_labels.get(k, k)
-                for k in case.get("clinical_mayores", [])
-            ],
+    st.markdown(
+        "#### 👩 Datos de la madre"
+    )
 
-        "Criterios menores":
-            [
-                minor_labels.get(k, k)
-                for k in case.get("clinical_menores", [])
-            ],
+    col1, col2 = st.columns(2)
 
-        "Clasificación LatidoSeguro-CHD":
-            case.get("risk_label", ""),
+    with col1:
+        st.markdown(
+            f"""
+            **Nombre completo**  
+            {case.get("mother_name", "No registrado")}
+            """
+        )
 
-        "Resultado":
-            "POSITIVO",
-    }
+    with col2:
+        st.markdown(
+            f"""
+            **DNI**  
+            {case.get("mother_dni", "No registrado")}
+            """
+        )
 
-    st.json(data)
+    st.divider()
+
+    # ========================================================
+    # ESTABLECIMIENTO
+    # ========================================================
+
+    st.markdown(
+        "#### 🏥 Establecimiento de salud"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown(
+            f"""
+            **Establecimiento**  
+            {st.session_state.facility["name"]}
+            """
+        )
+
+    with col2:
+        st.markdown(
+            f"""
+            **Ubicación**  
+            {st.session_state.facility["location"]}
+            """
+        )
+
+    with col3:
+        st.markdown(
+            f"""
+            **Altitud**  
+            {st.session_state.facility["altitude_range"]}
+            """
+        )
+
+    st.divider()
+
+    # ========================================================
+    # EVALUACIÓN POR OXIMETRÍA
+    # ========================================================
+
+    st.markdown(
+        "#### 🫀 Evaluación por oximetría"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(
+            "Saturación preductal",
+            f'{last["preductal"]}%'
+            if last
+            else "—"
+        )
+
+    with col2:
+        st.metric(
+            "Saturación posductal",
+            f'{last["postductal"]}%'
+            if last
+            else "—"
+        )
+
+    with col3:
+        st.metric(
+            "Diferencia",
+            f'{last["difference"]:.0f}%'
+            if last
+            else "—"
+        )
+
+    st.markdown(
+        f"""
+        **Sensor neonatal:**  
+        {"Disponible" if case.get("has_sensor", True) else "No disponible"}
+        """
+    )
+
+    st.markdown(
+        f"""
+        **Mediciones anteriores:**  
+        {max(len(measurements) - 1, 0)}
+        """
+    )
+
+    st.divider()
+
+    # ========================================================
+    # EVALUACIÓN CLÍNICA
+    # ========================================================
+
+    st.markdown(
+        "#### 🩺 Evaluación clínica"
+    )
+
+    mayores = [
+        mayor_labels.get(k, k)
+        for k in case.get(
+            "clinical_mayores",
+            []
+        )
+    ]
+
+    menores = [
+        minor_labels.get(k, k)
+        for k in case.get(
+            "clinical_menores",
+            []
+        )
+    ]
+
+    if mayores:
+        st.markdown(
+            "**Criterios mayores identificados:**"
+        )
+
+        for criterio in mayores:
+            st.markdown(
+                f"🔴 {criterio}"
+            )
+    else:
+        st.markdown(
+            "**Criterios mayores:** Ninguno registrado"
+        )
+
+    st.write("")
+
+    if menores:
+        st.markdown(
+            "**Criterios menores identificados:**"
+        )
+
+        for criterio in menores:
+            st.markdown(
+                f"🟠 {criterio}"
+            )
+    else:
+        st.markdown(
+            "**Criterios menores:** Ninguno registrado"
+        )
+
+    st.write("")
+
+    risk_label = case.get(
+        "risk_label",
+        ""
+    )
+
+    if risk_label:
+        st.info(
+            f"**Clasificación LatidoSeguro-CHD:** {risk_label}"
+        )
+    else:
+        st.markdown(
+            "**Clasificación LatidoSeguro-CHD:** No registrada"
+        )
+
+    st.divider()
+
+    # ========================================================
+    # RESULTADO
+    # ========================================================
+
+    st.markdown(
+        "#### 🔴 Resultado del tamizaje"
+    )
+
+    st.error(
+        "TAMIZAJE POSITIVO — Requiere evaluación médica inmediata."
+    )
 
     st.write("")
 
