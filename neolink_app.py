@@ -63,11 +63,10 @@ MAYOR_CRITERIA = [
             "Observe la coloración de la lengua, la mucosa oral/labios "
             "y el tronco del recién nacido.\n\n"
             "Si está disponible y clínicamente corresponde, realice el "
-            "**test de hiperoxia** con O₂ al 100% durante unos minutos: "
-            "esto puede apoyar el diferencial cardíaco vs. respiratorio. "
-            "Una **escasa respuesta** (la saturación no mejora) aumenta "
-            "la sospecha de causa cardíaca. La ausencia del test **no "
-            "descarta** cardiopatía por sí sola."
+            "**test de hiperoxia** con O₂ al 100% durante 10 minutos. "
+            "Evalúe si la **PaO₂ (presión arterial de oxígeno)** es mayor "
+            "después de los 10 minutos. No se registra SpO₂ en este paso. "
+            "La ausencia del test **no descarta** cardiopatía por sí sola."
         ),
         "kind": "cianosis",
     },
@@ -75,13 +74,10 @@ MAYOR_CRITERIA = [
         "key": "pulsos", "code": "M2",
         "label": "Alteración de pulsos / perfusión diferencial",
         "how_to": (
-            "Palpe los pulsos femorales y compárelos con los "
-            "braquiales, y evalúe perfusión, color y temperatura "
-            "entre extremidades superiores e inferiores.\n\n"
-            "Ingrese abajo lo que encuentre; LatidoSeguro calcula si "
-            "el criterio se cumple (pulsos femorales ausentes o "
-            "marcadamente disminuidos respecto a braquiales, y/o "
-            "diferencia evidente de perfusión)."
+            "Palpe los pulsos y registre la **frecuencia cardíaca en "
+            "latidos por minuto (lpm)**. Por ejemplo: 100 lpm.\n\n"
+            "Evalúe además la perfusión, color y temperatura, y registre "
+            "los hallazgos clínicos observados."
         ),
         "kind": "pulsos",
     },
@@ -120,21 +116,7 @@ MAYOR_CRITERIA = [
             "ajustable según protocolo institucional."
         ),
     },
-    {
-        "key": "prenatal", "code": "M5",
-        "label": "Sospecha prenatal de cardiopatía congénita",
-        "how_to": (
-            "Revise la ecografía obstétrica y/o la ecocardiografía "
-            "fetal.\n\n"
-            "Marque este criterio si existe un hallazgo sugestivo de "
-            "cardiopatía congénita significativa en esos estudios."
-        ),
-        "kind": "bool",
-        "question": (
-            "¿La ecografía/ecocardiografía fetal muestra un hallazgo "
-            "sugestivo de cardiopatía congénita significativa?"
-        ),
-    },
+
 ]
 
 MINOR_CRITERIA = [
@@ -695,48 +677,26 @@ def render_calc_cianosis(key, stored):
     st.write("")
 
     realizado = st.checkbox(
-        "Se realizó test de hiperoxia con O₂ al 100% (opcional)",
+        "Se realizó test de hiperoxia con O₂ al 100% durante 10 minutos",
         value=stored.get("hiperoxia_realizado", False),
         key=f"{key}_hip"
     )
 
-    spo2_pre = stored.get("spo2_pre")
-    spo2_post = stored.get("spo2_post")
+    pao2_mayor = stored.get("pao2_mayor")
 
     if realizado:
+        pao2_mayor = st.radio(
+            "Después de 10 minutos, ¿la PaO₂ es mayor?",
+            ["No", "Sí"],
+            index=1 if stored.get("pao2_mayor") is True else 0,
+            key=f"{key}_pao2",
+            horizontal=True
+        ) == "Sí"
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            spo2_pre = st.number_input(
-                "SpO2 antes de O₂ 100% (%)",
-                min_value=30, max_value=100,
-                value=int(stored.get("spo2_pre", 70)),
-                key=f"{key}_pre"
-            )
-
-        with col2:
-            spo2_post = st.number_input(
-                "SpO2 tras varios minutos con O₂ 100% (%)",
-                min_value=30, max_value=100,
-                value=int(stored.get("spo2_post", 75)),
-                key=f"{key}_post"
-            )
-
-        delta = spo2_post - spo2_pre
-
-        if spo2_post < 85 or delta < 10:
-            st.warning(
-                f"⬆️ Respuesta escasa al O₂ (Δ={delta} pts, SpO2 "
-                f"final {spo2_post}%). Aumenta la sospecha de causa "
-                f"cardíaca."
-            )
-        else:
-            st.info(
-                f"⬆️ Buena respuesta al O₂ (Δ={delta} pts). Sugiere "
-                f"causa más respiratoria que cardíaca, aunque no "
-                f"descarta cardiopatía."
-            )
+        st.caption(
+            "PaO₂ = presión arterial de oxígeno. En este paso no se registra "
+            "la saturación (SpO₂)."
+        )
 
     positive = (observado == "Sí")
 
@@ -746,14 +706,17 @@ def render_calc_cianosis(key, stored):
         else "Sin cianosis central observada"
     )
 
-    if realizado and spo2_pre is not None and spo2_post is not None:
-        detail += f" · Test hiperoxia: {spo2_pre}% → {spo2_post}%"
+    if realizado:
+        detail += (
+            " · Test de hiperoxia 10 min: PaO₂ mayor"
+            if pao2_mayor
+            else " · Test de hiperoxia 10 min: PaO₂ no mayor"
+        )
 
     raw = {
         "observado": positive,
         "hiperoxia_realizado": realizado,
-        "spo2_pre": spo2_pre,
-        "spo2_post": spo2_post,
+        "pao2_mayor": pao2_mayor,
     }
 
     st.caption(
@@ -767,26 +730,13 @@ def render_calc_cianosis(key, stored):
 
 def render_calc_pulsos(key, stored):
 
-    opts = ["Normal", "Disminuido", "Ausente"]
-    rank = {"Normal": 0, "Disminuido": 1, "Ausente": 2}
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        femoral = st.selectbox(
-            "Pulso femoral",
-            opts,
-            index=opts.index(stored.get("femoral", "Normal")),
-            key=f"{key}_fem"
-        )
-
-    with col2:
-        braquial = st.selectbox(
-            "Pulso braquial",
-            opts,
-            index=opts.index(stored.get("braquial", "Normal")),
-            key=f"{key}_bra"
-        )
+    fc = st.number_input(
+        "Frecuencia cardíaca (latidos por minuto)",
+        min_value=0, max_value=300,
+        value=int(stored.get("fc", 100)),
+        step=1,
+        key=f"{key}_fc"
+    )
 
     diff_perf = st.checkbox(
         "Diferencia evidente de perfusión, color o temperatura "
@@ -795,14 +745,19 @@ def render_calc_pulsos(key, stored):
         key=f"{key}_diff"
     )
 
-    positive = (
-        rank[femoral] > rank[braquial]
-        or femoral == "Ausente"
-        or diff_perf
-    )
+    pulsos_alterados = st.radio(
+        "¿Se observan pulsos femorales ausentes o marcadamente disminuidos?",
+        ["No", "Sí"],
+        index=1 if stored.get("pulsos_alterados") else 0,
+        key=f"{key}_alt",
+        horizontal=True
+    ) == "Sí"
+
+    positive = pulsos_alterados or diff_perf
 
     detail = (
-        f"Femoral: {femoral} · Braquial: {braquial} · "
+        f"FC: {fc} lpm · Pulsos femorales alterados: "
+        f"{'Sí' if pulsos_alterados else 'No'} · "
         f"Diferencia de perfusión: {'Sí' if diff_perf else 'No'}"
     )
 
@@ -813,8 +768,8 @@ def render_calc_pulsos(key, stored):
     )
 
     raw = {
-        "femoral": femoral,
-        "braquial": braquial,
+        "fc": fc,
+        "pulsos_alterados": pulsos_alterados,
         "diff_perf": diff_perf,
     }
 
@@ -1027,10 +982,32 @@ def render_calc_bool(key, stored, question):
     )
 
     positive = (ans == "Sí")
+    detalle_extra = stored.get("detalle_extra", "")
 
-    detail = "Presente" if positive else "Ausente"
+    if positive and key in {"soplo", "familiar", "sindrome"}:
+        detalle_label = {
+            "soplo": "¿Cuál es el soplo / hallazgo auscultatorio?",
+            "familiar": "¿Cuál es el familiar de primer grado con cardiopatía congénita?",
+            "sindrome": "¿Cuál es el síndrome o hallazgo sugestivo?",
+        }[key]
 
-    raw = {"presente": positive}
+        detalle_extra = st.text_input(
+            detalle_label,
+            value=detalle_extra,
+            key=f"{key}_detalle"
+        )
+
+    if positive:
+        detail = "Presente"
+        if detalle_extra:
+            detail += f" · Detalle: {detalle_extra}"
+    else:
+        detail = "Ausente"
+
+    raw = {
+        "presente": positive,
+        "detalle_extra": detalle_extra,
+    }
 
     return positive, detail, raw
 
