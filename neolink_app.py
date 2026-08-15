@@ -984,10 +984,16 @@ def render_calc_bool(key, stored, question):
     positive = (ans == "Sí")
     detalle_extra = stored.get("detalle_extra", "")
 
-    if positive and key in {"soplo", "familiar", "sindrome"}:
+    if positive and key in {"soplo", "familiar", "materno", "sindrome"}:
+        st.checkbox(
+            "☑ Registrar detalle del hallazgo",
+            value=True,
+            key=f"{key}_detalle_check"
+        )
         detalle_label = {
             "soplo": "¿Cuál es el soplo / hallazgo auscultatorio?",
             "familiar": "¿Cuál es el familiar de primer grado con cardiopatía congénita?",
+            "materno": "¿Cuál es el antecedente materno/prenatal relevante?",
             "sindrome": "¿Cuál es el síndrome o hallazgo sugestivo?",
         }[key]
 
@@ -2058,7 +2064,9 @@ elif st.session_state.screen == "Pie":
 
         case["andes_result"] = result
 
-        go("Criterios clínicos")
+        # Si hay oxímetro, no se realiza evaluación clínica.
+        st.session_state.result = result
+        go("Resultado")
 
 
 # ============================================================
@@ -2096,19 +2104,18 @@ elif st.session_state.screen == "Criterios clínicos":
     idx = case["_criteria_idx"]
     total_steps = len(ALL_CRITERIA)
 
+    # Esta pantalla solo debe existir cuando NO hay sensor.
+    # Si hay sensor, el flujo Mano derecha -> Pie ya envía directamente a Resultado.
     if has_sensor:
-        st.title("Evaluación clínica complementaria")
-        st.caption(
-            "LatidoSeguro-CHD — se combina con el resultado de "
-            "oximetría (ANDES-CHD) ya registrado."
-        )
-    else:
-        st.title("2B. Evaluación clínica de riesgo")
-        st.warning(
-            "⚠️ No reemplaza la oximetría. Esta evaluación se usa "
-            "como estratificación de riesgo porque no hay sensor "
-            "neonatal disponible."
-        )
+        go("Resultado")
+        st.stop()
+
+    st.title("2B. Evaluación clínica de riesgo")
+    st.warning(
+        "⚠️ No reemplaza la oximetría. Esta evaluación se usa "
+        "como estratificación de riesgo porque no hay sensor "
+        "neonatal disponible."
+    )
 
     # --------------------------------------------------------
     # Recorrido criterio por criterio
